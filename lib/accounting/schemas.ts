@@ -56,3 +56,30 @@ export const reverseSchema = z.object({
   reversal_date: z.iso.date(),
   description: z.string().trim().max(2000).optional(),
 });
+
+export const supplierBillSchema = z.object({
+  id: z.string().uuid().optional(),
+  supplier_id: z.string().uuid(),
+  bill_number: z.string().trim().min(1).max(50),
+  bill_date: z.iso.date(),
+  due_date: z.iso.date(),
+  description: z.string().trim().max(2000).optional(),
+  lines: z.array(z.object({
+    expense_account_id: z.string().uuid(),
+    description: z.string().trim().min(1).max(500),
+    net_amount: amount,
+    vat_amount: amount,
+  })).min(1).max(100),
+}).superRefine((bill, ctx) => {
+  if (bill.due_date < bill.bill_date) ctx.addIssue({ code: "custom", path: ["due_date"], message: "Due date cannot be before the bill date." });
+  bill.lines.forEach((line, index) => {
+    if (new Decimal(line.net_amount).lte(0)) ctx.addIssue({ code: "custom", path: ["lines", index, "net_amount"], message: "Net amount must be greater than zero." });
+  });
+});
+
+export const supplierBillPaymentSchema = z.object({
+  bill_id: z.string().uuid(),
+  payment_date: z.iso.date(),
+  bank_account_id: z.string().uuid(),
+  amount: amount.refine((value) => new Decimal(value).gt(0), "Payment amount must be greater than zero."),
+});

@@ -233,6 +233,217 @@ export type Database = {
           },
         ]
       }
+      accounting_supplier_bill_events: {
+        Row: {
+          actor_id: string | null
+          bill_id: string
+          details: Json
+          event_type: string
+          id: string
+          occurred_at: string
+          tenant_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          bill_id: string
+          details?: Json
+          event_type: string
+          id?: string
+          occurred_at?: string
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          bill_id?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_supplier_bill_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_supplier_bill_lines: {
+        Row: {
+          bill_id: string
+          created_at: string
+          description: string
+          expense_account_id: string
+          id: string
+          net_amount: number
+          tenant_id: string
+          vat_amount: number
+        }
+        Insert: {
+          bill_id: string
+          created_at?: string
+          description: string
+          expense_account_id: string
+          id?: string
+          net_amount: number
+          tenant_id: string
+          vat_amount?: number
+        }
+        Update: {
+          bill_id?: string
+          created_at?: string
+          description?: string
+          expense_account_id?: string
+          id?: string
+          net_amount?: number
+          tenant_id?: string
+          vat_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_supplier_bill_line_account"
+            columns: ["tenant_id", "expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_supplier_bill_line_bill"
+            columns: ["tenant_id", "bill_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_supplier_bills"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      accounting_supplier_bill_payments: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          bill_id: string
+          created_at: string
+          created_by: string
+          id: string
+          journal_entry_id: string
+          payment_date: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          bill_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          journal_entry_id: string
+          payment_date: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          bill_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          journal_entry_id?: string
+          payment_date?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_supplier_bill_payment_bank"
+            columns: ["tenant_id", "bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_supplier_bill_payment_bill"
+            columns: ["tenant_id", "bill_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_supplier_bills"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_supplier_bill_payment_journal"
+            columns: ["tenant_id", "journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_journal_entries"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      accounting_supplier_bills: {
+        Row: {
+          bill_date: string
+          bill_number: string
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string
+          id: string
+          journal_entry_id: string | null
+          status: string
+          supplier_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          bill_date: string
+          bill_number: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date: string
+          id?: string
+          journal_entry_id?: string | null
+          status?: string
+          supplier_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          bill_date?: string
+          bill_number?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          journal_entry_id?: string | null
+          status?: string
+          supplier_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_supplier_bills_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_supplier_bill_journal"
+            columns: ["tenant_id", "journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_journal_entries"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "fk_supplier_bill_supplier"
+            columns: ["tenant_id", "supplier_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_suppliers"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
       accounting_supplier_code_counters: {
         Row: {
           last_number: number
@@ -456,6 +667,21 @@ export type Database = {
         Args: { p_actor_id?: string; p_entry_id: string; p_tenant_id: string }
         Returns: string
       }
+      post_supplier_bill: {
+        Args: { p_actor_id: string; p_bill_id: string; p_tenant_id: string }
+        Returns: Json
+      }
+      record_supplier_bill_payment: {
+        Args: {
+          p_actor_id: string
+          p_amount: number
+          p_bank_account_id: string
+          p_bill_id: string
+          p_payment_date: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       reverse_journal_entry: {
         Args: {
           p_actor_id?: string
@@ -523,6 +749,20 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: Json
+      }
+      save_supplier_bill: {
+        Args: {
+          p_actor_id: string
+          p_bill_date: string
+          p_bill_id?: string
+          p_bill_number: string
+          p_description: string
+          p_due_date: string
+          p_lines: Json
+          p_supplier_id: string
+          p_tenant_id: string
+        }
+        Returns: string
       }
       suggest_journal_entry_number: {
         Args: { p_entry_date: string; p_tenant_id: string }

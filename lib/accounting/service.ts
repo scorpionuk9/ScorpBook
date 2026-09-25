@@ -4,7 +4,8 @@ import type { Tables } from "@/types/supabase";
 import { createAdminClient } from "@/lib/supabase/server";
 import { SCORPBOOK_TENANT_ID } from "@/lib/accounting/constants";
 import { z } from "zod";
-import { accountSchema, journalSchema, postSchema, reverseSchema, supplierSchema } from "@/lib/accounting/schemas";
+import { accountSchema, journalSchema, postSchema, reverseSchema, supplierBillPaymentSchema, supplierBillSchema, supplierSchema } from "@/lib/accounting/schemas";
+import Decimal from "decimal.js";
 
 export type Account = Tables<"accounting_accounts">;
 export type Supplier = Tables<"accounting_suppliers">;
@@ -40,6 +41,16 @@ export type BalanceSheetAccountRow = {
   amount: string;
 };
 export type BalanceSheetData = { accounts: BalanceSheetAccountRow[]; current_earnings: string };
+export type SupplierBillLine = Omit<Tables<"accounting_supplier_bill_lines">, "net_amount" | "vat_amount"> & { net_amount: string; vat_amount: string };
+export type SupplierBillPayment = Omit<Tables<"accounting_supplier_bill_payments">, "amount"> & { amount: string };
+export type SupplierBill = Tables<"accounting_supplier_bills"> & {
+  lines: SupplierBillLine[];
+  payments: SupplierBillPayment[];
+  supplier_name: string;
+  total: string;
+  paid_total: string;
+  outstanding: string;
+};
 
 const numberedJournalEntrySchema = z.object({ id: z.string().uuid(), entry_number: z.string().min(1) });
 
@@ -101,6 +112,72 @@ export async function saveSupplier(input: unknown, actorId: string): Promise<str
   throwOnError(readError, "Failed to read the saved supplier code");
   if (!savedSupplier) throw new Error("The saved supplier could not be found.");
   return savedSupplier.supplier_code;
+}
+
+export async function listSupplierBills(): Promise<SupplierBill[]> {
+  const client = createAdminClient();
+  const billResult = await client.from("accounting_supplier_bills").select("*").eq("tenant_id", SCORPBOOK_TENANT_ID)
+    .order("bill_date", { ascending: false }).order("created_at", { ascending: false }).limit(200);
+  throwOnError(billResult.error, "Failed to load supplier bills");
+  if (!billResult.data?.length) return [];
+  const billIds = billResult.data.map((bill) => bill.id);
+  const [supplierResult, lineResult, paymentResult] = await Promise.all([
+    client.from("accounting_suppliers").select("id, name").eq("tenant_id", SCORPBOOK_TENANT_ID),
+    client.from("accounting_supplier_bill_lines").select("id, tenant_id, bill_id, expense_account_id, description, created_at, net_amount::text, vat_amount::text")
+      .eq("tenant_id", SCORPBOOK_TENANT_ID).in("bill_id", billIds),
+    client.from("accounting_supplier_bill_payments").select("id, tenant_id, bill_id, payment_date, bank_account_id, journal_entry_id, created_by, created_at, amount::text")
+      .eq("tenant_id", SCORPBOOK_TENANT_ID).in("bill_id", billIds),
+  ]);
+  throwOnError(supplierResult.error, "Failed to load suppliers");
+  throwOnError(lineResult.error, "Failed to load supplier bill lines");
+  throwOnError(paymentResult.error, "Failed to load supplier bill payments");
+  const suppliers = new Map((supplierResult.data ?? []).map((item) => [item.id, item.name]));
+  const lines = new Map<string, SupplierBillLine[]>();
+  const payments = new Map<string, SupplierBillPayment[]>();
+  for (const line of lineResult.data ?? []) lines.set(line.bill_id, [...(lines.get(line.bill_id) ?? []), line]);
+  for (const payment of paymentResult.data ?? []) payments.set(payment.bill_id, [...(payments.get(payment.bill_id) ?? []), payment]);
+  return (billResult.data ?? []).map((bill) => {
+    const billLines = lines.get(bill.id) ?? [];
+    const billPayments = payments.get(bill.id) ?? [];
+    const total = billLines.reduce((sum, line) => sum.plus(line.net_amount).plus(line.vat_amount), new Decimal(0));
+    const paid = billPayments.reduce((sum, payment) => sum.plus(payment.amount), new Decimal(0));
+    return { ...bill, lines: billLines, payments: billPayments, supplier_name: suppliers.get(bill.supplier_id) ?? "Unknown supplier", total: total.toFixed(4), paid_total: paid.toFixed(4), outstanding: total.minus(paid).toFixed(4) };
+  });
+}
+
+export async function saveSupplierBill(input: unknown, actorId: string): Promise<string> {
+  const bill = supplierBillSchema.parse(input);
+  const { data, error } = await createAdminClient().rpc("save_supplier_bill", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_supplier_id: bill.supplier_id,
+    p_bill_number: bill.bill_number, p_bill_date: bill.bill_date, p_due_date: bill.due_date,
+    p_description: bill.description ?? "", p_bill_id: bill.id,
+    p_lines: bill.lines.map((line) => ({ ...line, vat_amount: line.vat_amount || "0" })),
+  });
+  throwOnError(error, "Failed to save supplier bill");
+  if (!data) throw new Error("The database did not return the saved bill ID.");
+  return data;
+}
+
+const numberedResultSchema = z.object({ id: z.string().uuid(), entry_number: z.string().min(1) });
+
+export async function postSupplierBill(billId: string, actorId: string): Promise<NumberedJournalEntry> {
+  const id = z.string().uuid().parse(billId);
+  const { data, error } = await createAdminClient().rpc("post_supplier_bill", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_bill_id: id,
+  });
+  throwOnError(error, "Failed to post supplier bill");
+  return numberedResultSchema.parse(data);
+}
+
+export async function recordSupplierBillPayment(input: unknown, actorId: string): Promise<NumberedJournalEntry> {
+  const payment = supplierBillPaymentSchema.parse(input);
+  const { data, error } = await createAdminClient().rpc("record_supplier_bill_payment", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_bill_id: payment.bill_id,
+    p_payment_date: payment.payment_date, p_bank_account_id: payment.bank_account_id,
+    p_amount: payment.amount as unknown as number,
+  });
+  throwOnError(error, "Failed to record supplier bill payment");
+  return numberedResultSchema.parse(data);
 }
 
 export async function getTrialBalance(asOfDate: string): Promise<TrialBalanceRow[]> {

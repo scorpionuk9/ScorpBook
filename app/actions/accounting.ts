@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAccountingUser } from "@/lib/accounting/auth";
-import { postJournal, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, suggestJournalEntryNumber } from "@/lib/accounting/service";
+import { postJournal, postSupplierBill, recordSupplierBillPayment, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, saveSupplierBill, suggestJournalEntryNumber } from "@/lib/accounting/service";
 
 export type ActionResult = { ok: boolean; message: string; id?: string; entry_number?: string; supplier_code?: string };
 
@@ -42,6 +42,45 @@ export async function saveSupplierAction(formData: FormData): Promise<ActionResu
     }, user.id);
     revalidatePath("/suppliers");
     return { ok: true, message: `Supplier ${supplier_code} saved.`, supplier_code };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function saveSupplierBillAction(input: unknown): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    const id = await saveSupplierBill(input, user.id);
+    revalidatePath("/bills");
+    return { ok: true, message: "Supplier bill draft saved.", id };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function postSupplierBillAction(formData: FormData): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    const posted = await postSupplierBill(String(formData.get("bill_id") || ""), user.id);
+    revalidatePath("/bills");
+    revalidatePath("/journal");
+    revalidatePath("/reports/trial-balance");
+    revalidatePath("/reports/income-statement");
+    revalidatePath("/reports/balance-sheet");
+    return { ok: true, message: `Bill posted as ${posted.entry_number}.`, id: posted.id, entry_number: posted.entry_number };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function recordSupplierBillPaymentAction(formData: FormData): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    const posted = await recordSupplierBillPayment({
+      bill_id: String(formData.get("bill_id") || ""),
+      payment_date: String(formData.get("payment_date") || ""),
+      bank_account_id: String(formData.get("bank_account_id") || ""),
+      amount: String(formData.get("amount") || ""),
+    }, user.id);
+    revalidatePath("/bills");
+    revalidatePath("/journal");
+    revalidatePath("/reports/trial-balance");
+    revalidatePath("/reports/balance-sheet");
+    return { ok: true, message: `Payment posted as ${posted.entry_number}.`, id: posted.id, entry_number: posted.entry_number };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }
 
