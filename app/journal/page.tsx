@@ -11,7 +11,7 @@ export default async function JournalPage() {
   const [entries, accounts] = await Promise.all([listJournalEntries(), listAccounts()]);
   const names = new Map(accounts.map((account) => [account.id, `${account.code} · ${account.name}`]));
   const reversedIds = new Set(entries.flatMap((entry) => entry.reverses_entry_id ? [entry.reverses_entry_id] : []));
-  return <div className="space-y-6">
+  return <main className="mx-auto w-full max-w-7xl px-5 py-8"><div className="space-y-6">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-sm font-semibold text-accent">總帳</p><h1 className="mt-1 text-3xl font-bold">日記帳</h1><p className="mt-2 text-sm text-slate-500">顯示最近 100 張憑證；過帳後內容不可修改，修正須建立沖銷分錄。</p></div>
       <Link className="button" href="/journal/new">＋ 建立憑證</Link>
@@ -31,5 +31,5 @@ export default async function JournalPage() {
         </tbody>
       </table></div>
     </section>
-  </div>;
+  </div></main>;
 }

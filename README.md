@@ -10,8 +10,9 @@ ScorpBook is the single-company accounting app for Scorpia Tech Ltd. Its journal
    - `SUPABASE_SERVICE_ROLE_KEY` from the project API settings. Keep this secret server-side; never use a `NEXT_PUBLIC_` name for it.
    - `SCORPBOOK_ALLOWED_USER_IDS` to the UUID(s) of authorized users from Supabase Auth. Multiple UUIDs can be comma-separated.
 3. Create the operator account in Supabase Auth (email/password sign-in must be enabled), then add its user UUID to the allowlist above.
-4. Ensure the ledger migrations in `supabase/migrations` have been applied to the Supabase project.
-5. Run `npm run dev` and open `http://localhost:3000`.
+4. Add the local and deployed callback URLs (`http://localhost:3000/auth/callback` and your deployed `/auth/callback`) to Supabase Auth's allowed redirect URLs for email confirmation.
+5. Ensure the ledger migrations in `supabase/migrations` have been applied to the Supabase project.
+6. Run `npm run dev` and open `http://localhost:3000`.
 
 The service-role key is used only in server modules. Each page and server action requires a valid Supabase Auth session and an allowlisted user ID. Direct browser access to the ledger remains blocked by RLS. The current app is intentionally tied to tenant `00000000-0000-4000-8000-000000000001`.
 

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function AccountsPage() {
   await requireAccountingUser();
   const accounts = await listAccounts();
-  return <div className="space-y-6">
+  return <main className="mx-auto w-full max-w-7xl px-5 py-8"><div className="space-y-6">
     <div><p className="text-sm font-semibold text-accent">總帳設定</p><h1 className="mt-1 text-3xl font-bold">會計科目</h1>
       <p className="mt-2 text-sm text-slate-500">管理公司科目表。停用科目不會刪除歷史分錄，也不能用於新憑證。</p></div>
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -31,5 +31,5 @@ export default async function AccountsPage() {
       </section>
       <section className="card h-fit p-5"><h2 className="font-semibold">新增科目</h2><p className="mt-1 text-sm text-slate-500">建立後不可刪除或更改代碼與類型。</p><div className="mt-4"><AccountForm /></div></section>
     </div>
-  </div>;
+  </div></main>;
 }

@@ -6,7 +6,7 @@ import { logoutAction } from "@/app/actions/auth";
 
 export function Navigation() {
   const pathname = usePathname();
-  if (pathname === "/login" || pathname === "/unauthorized") return null;
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/unauthorized" || pathname.startsWith("/auth/")) return null;
   return <header className="border-b border-slate-200 bg-white">
     <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
       <Link href="/journal" className="text-lg font-bold tracking-tight text-ink">ScorpBook <span className="ml-1 text-xs font-medium text-slate-500">ACCOUNTING</span></Link>
@@ -17,4 +17,10 @@ export function Navigation() {
       </nav>
     </div>
   </header>;
+}
+
+export function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/unauthorized" || pathname.startsWith("/auth/")) return null;
+  return <footer className="mx-auto w-full max-w-7xl px-5 pb-8 text-xs text-slate-400">Scorpia Tech Ltd · 固定租戶總帳</footer>;
 }
