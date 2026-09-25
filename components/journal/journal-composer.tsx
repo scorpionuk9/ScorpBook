@@ -70,11 +70,8 @@ export function JournalComposer({ accounts, draft, suggestedNumber, initialDate 
     });
     setMessage(result.message);
     setBusy(false);
-    if (result.ok && result.id && !draft) {
-      router.push(`/journal/${result.id}/edit`);
-    } else if (result.ok) {
-      setEntryNumber(result.entry_number ?? entryNumber);
-      setUseAutomaticNumber(false);
+    if (result.ok) {
+      router.push("/journal");
       router.refresh();
     }
   }
