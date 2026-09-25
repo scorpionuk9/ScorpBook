@@ -118,6 +118,44 @@ export type Database = {
           },
         ]
       }
+      accounting_journal_entry_events: {
+        Row: {
+          actor_id: string | null
+          details: Json
+          entry_id: string
+          event_type: string
+          id: string
+          occurred_at: string
+          tenant_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          details?: Json
+          entry_id: string
+          event_type: string
+          id?: string
+          occurred_at?: string
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          details?: Json
+          entry_id?: string
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_journal_entry_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_journal_lines: {
         Row: {
           account_id: string
@@ -224,7 +262,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      post_journal_entry: {
+        Args: { p_actor_id?: string; p_entry_id: string; p_tenant_id: string }
+        Returns: string
+      }
+      reverse_journal_entry: {
+        Args: {
+          p_actor_id?: string
+          p_description?: string
+          p_entry_id: string
+          p_reversal_date?: string
+          p_reversal_entry_number: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
+      save_draft_journal_entry: {
+        Args: {
+          p_actor_id?: string
+          p_description?: string
+          p_entry_date: string
+          p_entry_id?: string
+          p_entry_number: string
+          p_lines: Json
+          p_source_event?: string
+          p_source_id?: string
+          p_source_type: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
