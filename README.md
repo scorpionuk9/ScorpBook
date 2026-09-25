@@ -24,3 +24,4 @@ The service-role key is used only in server modules. Each page and server action
 - Post drafts through `post_journal_entry`; the database enforces final balance, active accounts, and immutability.
 - Reverse posted entries through `reverse_journal_entry`; the database creates and posts the inverse entry atomically and prevents duplicate reversals.
 - Browse the most recent 100 entries and inspect their lines.
+- Run a date-based trial balance from posted entries with exact decimal totals and a debit/credit balance check; inactive accounts remain visible for historical reporting.

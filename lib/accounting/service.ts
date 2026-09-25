@@ -12,6 +12,17 @@ export type JournalLine = Tables<"accounting_journal_lines">;
 export type ExactJournalLine = Omit<JournalLine, "debit" | "credit"> & { debit: string; credit: string };
 export type JournalDraftInput = z.infer<typeof journalSchema>;
 export type NumberedJournalEntry = { id: string; entry_number: string };
+export type TrialBalanceRow = {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: string;
+  is_active: boolean;
+  debit_activity: string;
+  credit_activity: string;
+  debit_balance: string;
+  credit_balance: string;
+};
 
 const numberedJournalEntrySchema = z.object({ id: z.string().uuid(), entry_number: z.string().min(1) });
 
@@ -24,6 +35,26 @@ export async function listAccounts(): Promise<Account[]> {
     .select("*").eq("tenant_id", SCORPBOOK_TENANT_ID).order("code");
   throwOnError(error, "Failed to load accounts");
   return data ?? [];
+}
+
+export async function getTrialBalance(asOfDate: string): Promise<TrialBalanceRow[]> {
+  const date = z.iso.date().parse(asOfDate);
+  const { data, error } = await createAdminClient().rpc("get_trial_balance", {
+    p_tenant_id: SCORPBOOK_TENANT_ID,
+    p_as_of_date: date,
+  });
+  throwOnError(error, "Failed to load trial balance");
+  return z.array(z.object({
+    account_id: z.string().uuid(),
+    account_code: z.string(),
+    account_name: z.string(),
+    account_type: z.string(),
+    is_active: z.boolean(),
+    debit_activity: z.string(),
+    credit_activity: z.string(),
+    debit_balance: z.string(),
+    credit_balance: z.string(),
+  })).parse(data ?? []);
 }
 
 export async function saveAccount(input: unknown): Promise<void> {

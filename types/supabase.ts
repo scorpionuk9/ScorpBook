@@ -299,6 +299,20 @@ export type Database = {
         }
         Returns: string
       }
+      get_trial_balance: {
+        Args: { p_as_of_date: string; p_tenant_id: string }
+        Returns: {
+          account_code: string
+          account_id: string
+          account_name: string
+          account_type: string
+          credit_activity: string
+          credit_balance: string
+          debit_activity: string
+          debit_balance: string
+          is_active: boolean
+        }[]
+      }
       post_journal_entry: {
         Args: { p_actor_id?: string; p_entry_id: string; p_tenant_id: string }
         Returns: string
