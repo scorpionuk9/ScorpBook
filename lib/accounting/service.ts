@@ -1,10 +1,10 @@
 import "server-only";
 
-import type { Tables } from "@/types/supabase";
+import type { Json, Tables } from "@/types/supabase";
 import { createAdminClient } from "@/lib/supabase/server";
 import { SCORPBOOK_TENANT_ID } from "@/lib/accounting/constants";
 import { z } from "zod";
-import { accountSchema, journalSchema, postSchema, reverseSchema, supplierBillPaymentSchema, supplierBillSchema, supplierSchema } from "@/lib/accounting/schemas";
+import { accountSchema, bankMatchSchema, bankReconciliationSchema, bankStatementLineIdSchema, bankStatementRowsSchema, completeBankReconciliationSchema, journalSchema, postSchema, reverseSchema, supplierBillPaymentSchema, supplierBillSchema, supplierSchema } from "@/lib/accounting/schemas";
 import Decimal from "decimal.js";
 
 export type Account = Tables<"accounting_accounts">;
@@ -50,6 +50,19 @@ export type SupplierBill = Tables<"accounting_supplier_bills"> & {
   total: string;
   paid_total: string;
   outstanding: string;
+};
+export type BankReconciliation = Omit<Tables<"accounting_bank_reconciliations">, "opening_balance" | "closing_balance"> & {
+  opening_balance: string; closing_balance: string; bank_account_name: string;
+};
+export type BankStatementLine = Omit<Tables<"accounting_bank_statement_lines">, "amount"> & {
+  amount: string; matched_entry_number: string | null;
+};
+export type BankJournalCandidate = {
+  id: string; entry_id: string; entry_number: string; entry_date: string; entry_description: string | null;
+  description: string | null; debit: string; credit: string; matched_statement_line_id: string | null;
+};
+export type BankReconciliationDetail = {
+  reconciliation: BankReconciliation; lines: BankStatementLine[]; candidates: BankJournalCandidate[];
 };
 
 const numberedJournalEntrySchema = z.object({ id: z.string().uuid(), entry_number: z.string().min(1) });
@@ -178,6 +191,112 @@ export async function recordSupplierBillPayment(input: unknown, actorId: string)
   });
   throwOnError(error, "Failed to record supplier bill payment");
   return numberedResultSchema.parse(data);
+}
+
+export async function listBankReconciliations(): Promise<BankReconciliation[]> {
+  const client = createAdminClient();
+  const [{ data, error }, accounts] = await Promise.all([
+    client.from("accounting_bank_reconciliations").select("id, tenant_id, bank_account_id, period_start, period_end, opening_balance::text, closing_balance::text, status, created_by, completed_by, completed_at, created_at")
+      .eq("tenant_id", SCORPBOOK_TENANT_ID).order("period_end", { ascending: false }).limit(100),
+    listAccounts(),
+  ]);
+  throwOnError(error, "Failed to load bank reconciliations");
+  const accountNames = new Map(accounts.map((account) => [account.id, `${account.code} · ${account.name}`]));
+  return (data ?? []).map((item) => ({ ...item, bank_account_name: accountNames.get(item.bank_account_id) ?? "Unknown account" }));
+}
+
+export async function getBankReconciliationDetail(reconciliationId: string): Promise<BankReconciliationDetail | null> {
+  const id = z.string().uuid().parse(reconciliationId);
+  const client = createAdminClient();
+  const { data: reconciliation, error } = await client.from("accounting_bank_reconciliations")
+    .select("id, tenant_id, bank_account_id, period_start, period_end, opening_balance::text, closing_balance::text, status, created_by, completed_by, completed_at, created_at")
+    .eq("tenant_id", SCORPBOOK_TENANT_ID).eq("id", id).maybeSingle();
+  throwOnError(error, "Failed to load bank reconciliation");
+  if (!reconciliation) return null;
+  const [accountResult, lineResult, entryResult, matchedResult] = await Promise.all([
+    client.from("accounting_accounts").select("code, name").eq("tenant_id", SCORPBOOK_TENANT_ID).eq("id", reconciliation.bank_account_id).single(),
+    client.from("accounting_bank_statement_lines").select("id, tenant_id, reconciliation_id, line_number, transaction_date, description, bank_reference, matched_journal_line_id, matched_by, matched_at, created_at, amount::text")
+      .eq("tenant_id", SCORPBOOK_TENANT_ID).eq("reconciliation_id", id).order("transaction_date").order("line_number"),
+    client.from("accounting_journal_entries").select("id, entry_number, entry_date, description")
+      .eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "POSTED").gte("entry_date", reconciliation.period_start).lte("entry_date", reconciliation.period_end),
+    client.from("accounting_bank_statement_lines").select("id, reconciliation_id, matched_journal_line_id")
+      .eq("tenant_id", SCORPBOOK_TENANT_ID).not("matched_journal_line_id", "is", null),
+  ]);
+  throwOnError(accountResult.error, "Failed to read bank account");
+  if (!accountResult.data) throw new Error("The reconciliation bank account could not be found.");
+  throwOnError(lineResult.error, "Failed to load bank statement lines");
+  throwOnError(entryResult.error, "Failed to load posted journal entries");
+  throwOnError(matchedResult.error, "Failed to load existing statement matches");
+  const entryIds = (entryResult.data ?? []).map((entry) => entry.id);
+  const journalLines = entryIds.length ? await client.from("accounting_journal_lines")
+    .select("id, entry_id, description, debit::text, credit::text").eq("tenant_id", SCORPBOOK_TENANT_ID)
+    .eq("account_id", reconciliation.bank_account_id).in("entry_id", entryIds) : { data: [], error: null };
+  throwOnError(journalLines.error, "Failed to load bank ledger lines");
+  const entryMap = new Map((entryResult.data ?? []).map((entry) => [entry.id, entry]));
+  const matchMap = new Map((matchedResult.data ?? []).filter((match) => match.matched_journal_line_id)
+    .map((match) => [match.matched_journal_line_id!, match]));
+  const candidateList: BankJournalCandidate[] = (journalLines.data ?? []).flatMap((line) => {
+    const entry = entryMap.get(line.entry_id);
+    if (!entry) return [];
+    const match = matchMap.get(line.id);
+    return [{ id: line.id, entry_id: line.entry_id, entry_number: entry.entry_number, entry_date: entry.entry_date,
+      entry_description: entry.description, description: line.description, debit: line.debit, credit: line.credit,
+      matched_statement_line_id: match?.reconciliation_id === id ? match.id : (match?.id ?? null) }];
+  }).sort((a, b) => a.entry_date.localeCompare(b.entry_date) || a.entry_number.localeCompare(b.entry_number));
+  const candidateById = new Map(candidateList.map((candidate) => [candidate.id, candidate]));
+  const lines: BankStatementLine[] = (lineResult.data ?? []).map((line) => ({
+    ...line,
+    matched_entry_number: line.matched_journal_line_id ? candidateById.get(line.matched_journal_line_id)?.entry_number ?? null : null,
+  }));
+  return { reconciliation: { ...reconciliation, bank_account_name: `${accountResult.data.code} · ${accountResult.data.name}` }, lines, candidates: candidateList };
+}
+
+export async function createBankReconciliation(input: unknown, actorId: string): Promise<string> {
+  const data = bankReconciliationSchema.parse(input);
+  const { data: id, error } = await createAdminClient().rpc("create_bank_reconciliation", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_bank_account_id: data.bank_account_id,
+    p_period_start: data.period_start, p_period_end: data.period_end,
+    p_opening_balance: data.opening_balance as unknown as number,
+    p_closing_balance: data.closing_balance as unknown as number,
+  });
+  throwOnError(error, "Failed to create bank reconciliation");
+  if (!id) throw new Error("The database did not return the reconciliation ID.");
+  return id;
+}
+
+export async function importBankStatementLines(reconciliationId: string, input: unknown, actorId: string): Promise<number> {
+  const id = z.string().uuid().parse(reconciliationId);
+  const rows = bankStatementRowsSchema.parse(input);
+  const { data, error } = await createAdminClient().rpc("import_bank_statement_lines", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_reconciliation_id: id, p_rows: rows as unknown as Json,
+  });
+  throwOnError(error, "Failed to import bank statement");
+  return data ?? 0;
+}
+
+export async function matchBankStatementLine(input: unknown, actorId: string): Promise<void> {
+  const match = bankMatchSchema.parse(input);
+  const { error } = await createAdminClient().rpc("match_bank_statement_line", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId,
+    p_statement_line_id: match.statement_line_id, p_journal_line_id: match.journal_line_id,
+  });
+  throwOnError(error, "Failed to match bank statement line");
+}
+
+export async function unmatchBankStatementLine(input: unknown, actorId: string): Promise<void> {
+  const { statement_line_id } = bankStatementLineIdSchema.parse(input);
+  const { error } = await createAdminClient().rpc("unmatch_bank_statement_line", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_statement_line_id: statement_line_id,
+  });
+  throwOnError(error, "Failed to remove bank statement match");
+}
+
+export async function completeBankReconciliation(input: unknown, actorId: string): Promise<void> {
+  const { reconciliation_id } = completeBankReconciliationSchema.parse(input);
+  const { error } = await createAdminClient().rpc("complete_bank_reconciliation", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_reconciliation_id: reconciliation_id,
+  });
+  throwOnError(error, "Failed to complete bank reconciliation");
 }
 
 export async function getTrialBalance(asOfDate: string): Promise<TrialBalanceRow[]> {

@@ -55,6 +55,164 @@ export type Database = {
           },
         ]
       }
+      accounting_bank_reconciliation_events: {
+        Row: {
+          actor_id: string | null
+          details: Json
+          event_type: string
+          id: string
+          occurred_at: string
+          reconciliation_id: string
+          tenant_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          details?: Json
+          event_type: string
+          id?: string
+          occurred_at?: string
+          reconciliation_id: string
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          details?: Json
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          reconciliation_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_bank_reconciliation_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_bank_reconciliations: {
+        Row: {
+          bank_account_id: string
+          closing_balance: number
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          id: string
+          opening_balance: number
+          period_end: string
+          period_start: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          bank_account_id: string
+          closing_balance: number
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          opening_balance: number
+          period_end: string
+          period_start: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          bank_account_id?: string
+          closing_balance?: number
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          opening_balance?: number
+          period_end?: string
+          period_start?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_bank_reconciliations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bank_reconciliation_account"
+            columns: ["tenant_id", "bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      accounting_bank_statement_lines: {
+        Row: {
+          amount: number
+          bank_reference: string | null
+          created_at: string
+          description: string
+          id: string
+          line_number: number
+          matched_at: string | null
+          matched_by: string | null
+          matched_journal_line_id: string | null
+          reconciliation_id: string
+          tenant_id: string
+          transaction_date: string
+        }
+        Insert: {
+          amount: number
+          bank_reference?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          line_number: number
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_journal_line_id?: string | null
+          reconciliation_id: string
+          tenant_id: string
+          transaction_date: string
+        }
+        Update: {
+          amount?: number
+          bank_reference?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          line_number?: number
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_journal_line_id?: string | null
+          reconciliation_id?: string
+          tenant_id?: string
+          transaction_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_bank_statement_lines_matched_journal_line_id_fkey"
+            columns: ["matched_journal_line_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_journal_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_bank_statement_line_reconciliation"
+            columns: ["tenant_id", "reconciliation_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_bank_reconciliations"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
       accounting_journal_entries: {
         Row: {
           created_at: string
@@ -635,6 +793,26 @@ export type Database = {
         Returns: string
       }
       allocate_supplier_code: { Args: { p_tenant_id: string }; Returns: string }
+      complete_bank_reconciliation: {
+        Args: {
+          p_actor_id: string
+          p_reconciliation_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      create_bank_reconciliation: {
+        Args: {
+          p_actor_id: string
+          p_bank_account_id: string
+          p_closing_balance: number
+          p_opening_balance: number
+          p_period_end: string
+          p_period_start: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       get_balance_sheet: {
         Args: { p_as_of_date: string; p_tenant_id: string }
         Returns: Json
@@ -662,6 +840,24 @@ export type Database = {
           debit_balance: string
           is_active: boolean
         }[]
+      }
+      import_bank_statement_lines: {
+        Args: {
+          p_actor_id: string
+          p_reconciliation_id: string
+          p_rows: Json
+          p_tenant_id: string
+        }
+        Returns: number
+      }
+      match_bank_statement_line: {
+        Args: {
+          p_actor_id: string
+          p_journal_line_id: string
+          p_statement_line_id: string
+          p_tenant_id: string
+        }
+        Returns: undefined
       }
       post_journal_entry: {
         Args: { p_actor_id?: string; p_entry_id: string; p_tenant_id: string }
@@ -769,6 +965,14 @@ export type Database = {
         Returns: string
       }
       suggest_supplier_code: { Args: { p_tenant_id: string }; Returns: string }
+      unmatch_bank_statement_line: {
+        Args: {
+          p_actor_id: string
+          p_statement_line_id: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

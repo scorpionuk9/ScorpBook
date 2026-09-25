@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAccountingUser } from "@/lib/accounting/auth";
-import { postJournal, postSupplierBill, recordSupplierBillPayment, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, saveSupplierBill, suggestJournalEntryNumber } from "@/lib/accounting/service";
+import { completeBankReconciliation, createBankReconciliation, importBankStatementLines, matchBankStatementLine, postJournal, postSupplierBill, recordSupplierBillPayment, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, saveSupplierBill, suggestJournalEntryNumber, unmatchBankStatementLine } from "@/lib/accounting/service";
 
 export type ActionResult = { ok: boolean; message: string; id?: string; entry_number?: string; supplier_code?: string };
 
@@ -81,6 +81,52 @@ export async function recordSupplierBillPaymentAction(formData: FormData): Promi
     revalidatePath("/reports/trial-balance");
     revalidatePath("/reports/balance-sheet");
     return { ok: true, message: `Payment posted as ${posted.entry_number}.`, id: posted.id, entry_number: posted.entry_number };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function createBankReconciliationAction(input: unknown): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    const id = await createBankReconciliation(input, user.id);
+    revalidatePath("/banking");
+    return { ok: true, message: "Bank reconciliation created.", id };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function importBankStatementAction(reconciliationId: string, rows: unknown): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    const count = await importBankStatementLines(reconciliationId, rows, user.id);
+    revalidatePath(`/banking/${reconciliationId}`);
+    return { ok: true, message: `${count} bank statement lines imported.` };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function matchBankStatementLineAction(reconciliationId: string, input: unknown): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    await matchBankStatementLine(input, user.id);
+    revalidatePath(`/banking/${reconciliationId}`);
+    return { ok: true, message: "Bank line matched." };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function unmatchBankStatementLineAction(reconciliationId: string, input: unknown): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    await unmatchBankStatementLine(input, user.id);
+    revalidatePath(`/banking/${reconciliationId}`);
+    return { ok: true, message: "Match removed." };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function completeBankReconciliationAction(reconciliationId: string): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    await completeBankReconciliation({ reconciliation_id: reconciliationId }, user.id);
+    revalidatePath("/banking");
+    revalidatePath(`/banking/${reconciliationId}`);
+    return { ok: true, message: "Bank reconciliation completed." };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }
 

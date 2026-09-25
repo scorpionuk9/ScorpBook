@@ -7,6 +7,11 @@ const amount = z.string().trim().regex(/^\d{1,11}(?:\.\d{1,4})?$/, "Enter a non-
   "Amount exceeds the NUMERIC(15,4) limit.",
 );
 
+const signedAmount = z.string().trim().regex(/^-?\d{1,11}(?:\.\d{1,4})?$/, "Enter a signed amount with up to 4 decimal places.").refine(
+  (value) => new Decimal(value).abs().lte("99999999999.9999"),
+  "Amount exceeds the NUMERIC(15,4) limit.",
+);
+
 export const accountSchema = z.object({
   id: z.string().uuid().optional(),
   code: z.string().trim().min(1).max(20),
@@ -83,3 +88,24 @@ export const supplierBillPaymentSchema = z.object({
   bank_account_id: z.string().uuid(),
   amount: amount.refine((value) => new Decimal(value).gt(0), "Payment amount must be greater than zero."),
 });
+
+export const bankReconciliationSchema = z.object({
+  bank_account_id: z.string().uuid(),
+  period_start: z.iso.date(),
+  period_end: z.iso.date(),
+  opening_balance: signedAmount,
+  closing_balance: signedAmount,
+}).superRefine((value, ctx) => {
+  if (value.period_start > value.period_end) ctx.addIssue({ code: "custom", path: ["period_end"], message: "Period end must be on or after the start date." });
+});
+
+export const bankStatementRowsSchema = z.array(z.object({
+  transaction_date: z.iso.date(),
+  description: z.string().trim().min(1).max(500),
+  reference: z.string().trim().max(150).optional(),
+  amount: signedAmount.refine((value) => new Decimal(value).isZero() === false, "Amount must not be zero."),
+})).min(1).max(5000);
+
+export const bankMatchSchema = z.object({ statement_line_id: z.string().uuid(), journal_line_id: z.string().uuid() });
+export const bankStatementLineIdSchema = z.object({ statement_line_id: z.string().uuid() });
+export const completeBankReconciliationSchema = z.object({ reconciliation_id: z.string().uuid() });
