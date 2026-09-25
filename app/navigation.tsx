@@ -1,0 +1,20 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { logoutAction } from "@/app/actions/auth";
+
+export function Navigation() {
+  const pathname = usePathname();
+  if (pathname === "/login" || pathname === "/unauthorized") return null;
+  return <header className="border-b border-slate-200 bg-white">
+    <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
+      <Link href="/journal" className="text-lg font-bold tracking-tight text-ink">ScorpBook <span className="ml-1 text-xs font-medium text-slate-500">ACCOUNTING</span></Link>
+      <nav className="flex items-center gap-2 text-sm">
+        <Link className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100" href="/journal">日記帳</Link>
+        <Link className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100" href="/accounts">會計科目</Link>
+        <form action={logoutAction}><button className="rounded-md px-3 py-2 text-slate-500 hover:bg-slate-100" type="submit">登出</button></form>
+      </nav>
+    </div>
+  </header>;
+}

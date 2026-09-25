@@ -1,0 +1,24 @@
+# ScorpBook
+
+ScorpBook is the single-company accounting app for Scorpia Tech Ltd. Its journal actions use the database's atomic draft, post and reversal RPCs; posted entries remain immutable. ScorpInvoice webhook integration is intentionally out of scope for this core workflow.
+
+## Run locally
+
+1. Install Node.js 20.9 or later and run `npm install`.
+2. Copy `.env.example` to `.env.local` and set:
+   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from the Supabase project API settings.
+   - `SUPABASE_SERVICE_ROLE_KEY` from the project API settings. Keep this secret server-side; never use a `NEXT_PUBLIC_` name for it.
+   - `SCORPBOOK_ALLOWED_USER_IDS` to the UUID(s) of authorized users from Supabase Auth. Multiple UUIDs can be comma-separated.
+3. Create the operator account in Supabase Auth (email/password sign-in must be enabled), then add its user UUID to the allowlist above.
+4. Ensure the ledger migrations in `supabase/migrations` have been applied to the Supabase project.
+5. Run `npm run dev` and open `http://localhost:3000`.
+
+The service-role key is used only in server modules. Each page and server action requires a valid Supabase Auth session and an allowlisted user ID. Direct browser access to the ledger remains blocked by RLS. The current app is intentionally tied to tenant `00000000-0000-4000-8000-000000000001`.
+
+## Implemented workflows
+
+- Browse and maintain the chart of accounts. New accounts can be added; existing accounts can be renamed or activated/deactivated. Accounts are never deleted, and their code/type are immutable through the app.
+- Create and revise journal drafts using exact decimal strings; show debit and credit totals with `decimal.js`.
+- Post drafts through `post_journal_entry`; the database enforces final balance, active accounts, and immutability.
+- Reverse posted entries through `reverse_journal_entry`; the database creates and posts the inverse entry atomically and prevents duplicate reversals.
+- Browse the most recent 100 entries and inspect their lines.
