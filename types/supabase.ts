@@ -1,5 +1,5 @@
 // Type definitions for the ScorpBook public schema.
-// These reflect supabase/migrations/20260925143000_create_accounting_ledger.sql.
+// These reflect the accounting ledger and initial chart-of-accounts migrations.
 // Regenerate from the linked Supabase project with:
 //   supabase gen types typescript --project-id qwxjywzowieigkodzwee --schema public
 
@@ -23,6 +23,24 @@ export type EntryStatus = "DRAFT" | "POSTED" | "VOIDED";
 export type Database = {
   public: {
     Tables: {
+      accounting_tenants: {
+        Row: {
+          id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       accounting_accounts: {
         Row: {
           id: string;
@@ -54,7 +72,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "fk_accounting_accounts_tenant";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "accounting_tenants";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       accounting_journal_entries: {
         Row: {
@@ -109,6 +135,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "accounting_journal_entries";
             referencedColumns: ["tenant_id", "id"];
+          },
+          {
+            foreignKeyName: "fk_accounting_entries_tenant";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "accounting_tenants";
+            referencedColumns: ["id"];
           },
         ];
       };
@@ -185,7 +218,15 @@ export type Database = {
           payload?: Json;
           processed_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "fk_webhook_events_tenant";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "accounting_tenants";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: { [_ in never]: never };
