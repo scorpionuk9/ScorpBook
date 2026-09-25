@@ -1,322 +1,359 @@
-// Type definitions for the ScorpBook public schema.
-// These reflect the accounting ledger and initial chart-of-accounts migrations.
-// Regenerate from the linked Supabase project with:
-//   supabase gen types typescript --project-id qwxjywzowieigkodzwee --schema public
-
 export type Json =
   | string
   | number
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
-
-export type AccountType =
-  | "ASSET"
-  | "LIABILITY"
-  | "EQUITY"
-  | "REVENUE"
-  | "EXPENSE";
-
-export type EntryStatus = "DRAFT" | "POSTED" | "VOIDED";
+  | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
-      accounting_tenants: {
-        Row: {
-          id: string;
-          name: string;
-          created_at: string;
-        };
-        Insert: {
-          id: string;
-          name: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
       accounting_accounts: {
         Row: {
-          id: string;
-          tenant_id: string;
-          code: string;
-          name: string;
-          type: AccountType;
-          is_active: boolean;
-          created_at: string;
-          updated_at: string;
-        };
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          tenant_id: string
+          type: string
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          tenant_id: string;
-          code: string;
-          name: string;
-          type: AccountType;
-          is_active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          tenant_id: string
+          type: string
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          tenant_id?: string;
-          code?: string;
-          name?: string;
-          type?: AccountType;
-          is_active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          tenant_id?: string
+          type?: string
+          updated_at?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "fk_accounting_accounts_tenant";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "accounting_tenants";
-            referencedColumns: ["id"];
+            foreignKeyName: "fk_accounting_accounts_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       accounting_journal_entries: {
         Row: {
-          id: string;
-          tenant_id: string;
-          entry_number: string;
-          entry_date: string;
-          description: string | null;
-          source_type: string;
-          source_id: string | null;
-          source_event: string | null;
-          status: EntryStatus;
-          reverses_entry_id: string | null;
-          created_by: string | null;
-          created_at: string;
-          updated_at: string;
-        };
+          created_at: string
+          created_by: string | null
+          description: string | null
+          entry_date: string
+          entry_number: string
+          id: string
+          reverses_entry_id: string | null
+          source_event: string | null
+          source_id: string | null
+          source_type: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          tenant_id: string;
-          entry_number: string;
-          entry_date?: string;
-          description?: string | null;
-          source_type: string;
-          source_id?: string | null;
-          source_event?: string | null;
-          status?: EntryStatus;
-          reverses_entry_id?: string | null;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_number: string
+          id?: string
+          reverses_entry_id?: string | null
+          source_event?: string | null
+          source_id?: string | null
+          source_type: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          tenant_id?: string;
-          entry_number?: string;
-          entry_date?: string;
-          description?: string | null;
-          source_type?: string;
-          source_id?: string | null;
-          source_event?: string | null;
-          status?: EntryStatus;
-          reverses_entry_id?: string | null;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entry_date?: string
+          entry_number?: string
+          id?: string
+          reverses_entry_id?: string | null
+          source_event?: string | null
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "fk_accounting_entries_reversed_entry";
-            columns: ["tenant_id", "reverses_entry_id"];
-            isOneToOne: false;
-            referencedRelation: "accounting_journal_entries";
-            referencedColumns: ["tenant_id", "id"];
+            foreignKeyName: "fk_accounting_entries_reversed_entry"
+            columns: ["tenant_id", "reverses_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_journal_entries"
+            referencedColumns: ["tenant_id", "id"]
           },
           {
-            foreignKeyName: "fk_accounting_entries_tenant";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "accounting_tenants";
-            referencedColumns: ["id"];
+            foreignKeyName: "fk_accounting_entries_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
           },
-        ];
-      };
+        ]
+      }
       accounting_journal_lines: {
         Row: {
-          id: string;
-          tenant_id: string;
-          entry_id: string;
-          account_id: string;
-          description: string | null;
-          debit: number;
-          credit: number;
-          created_at: string;
-        };
+          account_id: string
+          created_at: string
+          credit: number
+          debit: number
+          description: string | null
+          entry_id: string
+          id: string
+          tenant_id: string
+        }
         Insert: {
-          id?: string;
-          tenant_id: string;
-          entry_id: string;
-          account_id: string;
-          description?: string | null;
-          debit?: number;
-          credit?: number;
-          created_at?: string;
-        };
+          account_id: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          entry_id: string
+          id?: string
+          tenant_id: string
+        }
         Update: {
-          id?: string;
-          tenant_id?: string;
-          entry_id?: string;
-          account_id?: string;
-          description?: string | null;
-          debit?: number;
-          credit?: number;
-          created_at?: string;
-        };
+          account_id?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          description?: string | null
+          entry_id?: string
+          id?: string
+          tenant_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "fk_accounting_lines_entry";
-            columns: ["tenant_id", "entry_id"];
-            isOneToOne: false;
-            referencedRelation: "accounting_journal_entries";
-            referencedColumns: ["tenant_id", "id"];
+            foreignKeyName: "fk_accounting_lines_account"
+            columns: ["tenant_id", "account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
           },
           {
-            foreignKeyName: "fk_accounting_lines_account";
-            columns: ["tenant_id", "account_id"];
-            isOneToOne: false;
-            referencedRelation: "accounting_accounts";
-            referencedColumns: ["tenant_id", "id"];
+            foreignKeyName: "fk_accounting_lines_entry"
+            columns: ["tenant_id", "entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_journal_entries"
+            referencedColumns: ["tenant_id", "id"]
           },
-        ];
-      };
+        ]
+      }
+      accounting_tenants: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       webhook_events: {
         Row: {
-          id: string;
-          tenant_id: string;
-          event_id: string;
-          source_system: string;
-          payload: Json;
-          processed_at: string;
-        };
+          event_id: string
+          id: string
+          payload: Json
+          processed_at: string
+          source_system: string
+          tenant_id: string
+        }
         Insert: {
-          id?: string;
-          tenant_id: string;
-          event_id: string;
-          source_system: string;
-          payload: Json;
-          processed_at?: string;
-        };
+          event_id: string
+          id?: string
+          payload: Json
+          processed_at?: string
+          source_system: string
+          tenant_id: string
+        }
         Update: {
-          id?: string;
-          tenant_id?: string;
-          event_id?: string;
-          source_system?: string;
-          payload?: Json;
-          processed_at?: string;
-        };
+          event_id?: string
+          id?: string
+          payload?: Json
+          processed_at?: string
+          source_system?: string
+          tenant_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "fk_webhook_events_tenant";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "accounting_tenants";
-            referencedColumns: ["id"];
+            foreignKeyName: "fk_webhook_events_tenant"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
           },
-        ];
-      };
-    };
-    Views: { [_ in never]: never };
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
     Functions: {
-      assert_posted_entry_balanced: {
-        Args: Record<string, never>;
-        Returns: unknown;
-      };
-      guard_accounting_entry_mutation: {
-        Args: Record<string, never>;
-        Returns: unknown;
-      };
-      guard_accounting_line_mutation: {
-        Args: Record<string, never>;
-        Returns: unknown;
-      };
-      set_accounting_updated_at: {
-        Args: Record<string, never>;
-        Returns: unknown;
-      };
-    };
-    Enums: { [_ in never]: never };
-    CompositeTypes: { [_ in never]: never };
-  };
-};
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
 
-type DefaultSchema = Database[Extract<keyof Database, "public">];
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
-  TableNameOrOptions extends
+  DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof Database },
-  TableName extends TableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[TableNameOrOptions["schema"]]["Tables"] &
-        Database[TableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = TableNameOrOptions extends { schema: keyof Database }
-  ? (Database[TableNameOrOptions["schema"]]["Tables"] &
-      Database[TableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer Row;
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
     }
-    ? Row
+    ? R
     : never
-  : TableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
         DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[TableNameOrOptions] extends {
-        Row: infer Row;
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
       }
-      ? Row
+      ? R
       : never
-    : never;
+    : never
 
 export type TablesInsert<
-  TableNameOrOptions extends
+  DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends TableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[TableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = TableNameOrOptions extends { schema: keyof Database }
-  ? Database[TableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer Insert;
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
     }
-    ? Insert
+    ? I
     : never
-  : TableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][TableNameOrOptions] extends {
-        Insert: infer Insert;
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
       }
-      ? Insert
+      ? I
       : never
-    : never;
+    : never
 
 export type TablesUpdate<
-  TableNameOrOptions extends
+  DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends TableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[TableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = TableNameOrOptions extends { schema: keyof Database }
-  ? Database[TableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer Update;
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
     }
-    ? Update
+    ? U
     : never
-  : TableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][TableNameOrOptions] extends {
-        Update: infer Update;
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
       }
-      ? Update
+      ? U
       : never
-    : never;
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
