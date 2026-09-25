@@ -20,6 +20,7 @@ The service-role key is used only in server modules. Each page and server action
 
 - Browse and maintain the chart of accounts. New accounts can be added; existing accounts can be renamed or activated/deactivated. Accounts are never deleted, and their code/type are immutable through the app.
 - Create and revise journal drafts using exact decimal strings; show debit and credit totals with `decimal.js`.
+- Suggest editable journal numbers in `JE-YYYY-000001` format, with sequences scoped to the entry's calendar year. The database allocates numbers atomically when a draft or reversal is saved; manual values remain subject to tenant-wide uniqueness, and standard-format overrides advance the matching year counter.
 - Post drafts through `post_journal_entry`; the database enforces final balance, active accounts, and immutability.
 - Reverse posted entries through `reverse_journal_entry`; the database creates and posts the inverse entry atomically and prevents duplicate reversals.
 - Browse the most recent 100 entries and inspect their lines.

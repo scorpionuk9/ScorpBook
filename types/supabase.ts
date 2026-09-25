@@ -204,6 +204,35 @@ export type Database = {
           },
         ]
       }
+      accounting_journal_number_counters: {
+        Row: {
+          entry_year: number
+          last_number: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          entry_year: number
+          last_number?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          entry_year?: number
+          last_number?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_journal_number_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_tenants: {
         Row: {
           created_at: string
@@ -262,6 +291,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      allocate_journal_entry_number: {
+        Args: {
+          p_entry_date: string
+          p_requested_number?: string
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       post_journal_entry: {
         Args: { p_actor_id?: string; p_entry_id: string; p_tenant_id: string }
         Returns: string
@@ -277,6 +314,17 @@ export type Database = {
         }
         Returns: string
       }
+      reverse_journal_entry_numbered: {
+        Args: {
+          p_actor_id?: string
+          p_description?: string
+          p_entry_id: string
+          p_requested_entry_number?: string
+          p_reversal_date?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       save_draft_journal_entry: {
         Args: {
           p_actor_id?: string
@@ -290,6 +338,25 @@ export type Database = {
           p_source_type: string
           p_tenant_id: string
         }
+        Returns: string
+      }
+      save_draft_journal_entry_numbered: {
+        Args: {
+          p_actor_id?: string
+          p_description?: string
+          p_entry_date: string
+          p_entry_id?: string
+          p_lines: Json
+          p_requested_entry_number?: string
+          p_source_event?: string
+          p_source_id?: string
+          p_source_type: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
+      suggest_journal_entry_number: {
+        Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
       }
     }

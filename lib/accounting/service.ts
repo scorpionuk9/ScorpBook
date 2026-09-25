@@ -3,7 +3,7 @@ import "server-only";
 import type { Tables } from "@/types/supabase";
 import { createAdminClient } from "@/lib/supabase/server";
 import { SCORPBOOK_TENANT_ID } from "@/lib/accounting/constants";
-import type { z } from "zod";
+import { z } from "zod";
 import { accountSchema, journalSchema, postSchema, reverseSchema } from "@/lib/accounting/schemas";
 
 export type Account = Tables<"accounting_accounts">;
@@ -11,6 +11,9 @@ export type JournalEntry = Tables<"accounting_journal_entries">;
 export type JournalLine = Tables<"accounting_journal_lines">;
 export type ExactJournalLine = Omit<JournalLine, "debit" | "credit"> & { debit: string; credit: string };
 export type JournalDraftInput = z.infer<typeof journalSchema>;
+export type NumberedJournalEntry = { id: string; entry_number: string };
+
+const numberedJournalEntrySchema = z.object({ id: z.string().uuid(), entry_number: z.string().min(1) });
 
 function throwOnError(error: { message: string } | null, fallback: string): void {
   if (error) throw new Error(`${fallback}：${error.message}`);
@@ -66,11 +69,21 @@ export async function listJournalEntries(): Promise<Array<JournalEntry & { lines
   return entries.map((entry) => ({ ...entry, lines: byEntry.get(entry.id) ?? [] }));
 }
 
-export async function saveDraftJournal(input: unknown, actorId: string): Promise<string> {
-  const entry = journalSchema.parse(input);
-  const { data, error } = await createAdminClient().rpc("save_draft_journal_entry", {
+export async function suggestJournalEntryNumber(entryDate: string): Promise<string> {
+  const date = z.iso.date().parse(entryDate);
+  const { data, error } = await createAdminClient().rpc("suggest_journal_entry_number", {
     p_tenant_id: SCORPBOOK_TENANT_ID,
-    p_entry_number: entry.entry_number,
+    p_entry_date: date,
+  });
+  throwOnError(error, "Failed to suggest journal entry number");
+  if (!data) throw new Error("The database did not return a suggested entry number.");
+  return data;
+}
+
+export async function saveDraftJournal(input: unknown, actorId: string): Promise<NumberedJournalEntry> {
+  const entry = journalSchema.parse(input);
+  const { data, error } = await createAdminClient().rpc("save_draft_journal_entry_numbered", {
+    p_tenant_id: SCORPBOOK_TENANT_ID,
     p_entry_date: entry.entry_date,
     p_source_type: entry.source_type,
     p_lines: entry.lines.map((line) => ({
@@ -82,10 +95,10 @@ export async function saveDraftJournal(input: unknown, actorId: string): Promise
     p_description: entry.description || undefined,
     p_entry_id: entry.entry_id,
     p_actor_id: actorId,
+    p_requested_entry_number: entry.entry_number,
   });
   throwOnError(error, "Failed to save draft");
-  if (!data) throw new Error("Failed to save draft: the database did not return an entry ID.");
-  return data;
+  return numberedJournalEntrySchema.parse(data);
 }
 
 export async function postJournal(input: unknown, actorId: string): Promise<void> {
@@ -98,17 +111,16 @@ export async function postJournal(input: unknown, actorId: string): Promise<void
   throwOnError(error, "Failed to post journal entry");
 }
 
-export async function reverseJournal(input: unknown, actorId: string): Promise<string> {
+export async function reverseJournal(input: unknown, actorId: string): Promise<NumberedJournalEntry> {
   const reversal = reverseSchema.parse(input);
-  const { data, error } = await createAdminClient().rpc("reverse_journal_entry", {
+  const { data, error } = await createAdminClient().rpc("reverse_journal_entry_numbered", {
     p_tenant_id: SCORPBOOK_TENANT_ID,
     p_entry_id: reversal.entry_id,
-    p_reversal_entry_number: reversal.reversal_entry_number,
     p_reversal_date: reversal.reversal_date,
     p_description: reversal.description || undefined,
     p_actor_id: actorId,
+    p_requested_entry_number: reversal.reversal_entry_number,
   });
   throwOnError(error, "Failed to reverse journal entry");
-  if (!data) throw new Error("Failed to reverse entry: the database did not return an entry ID.");
-  return data;
+  return numberedJournalEntrySchema.parse(data);
 }

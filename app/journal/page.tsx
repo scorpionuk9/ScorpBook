@@ -3,12 +3,19 @@ import { requireAccountingUser } from "@/lib/accounting/auth";
 import { listAccounts, listJournalEntries } from "@/lib/accounting/service";
 import { ENTRY_STATUS_LABELS } from "@/lib/accounting/constants";
 import { PostButton, ReverseForm } from "@/components/journal/journal-operations";
+import { suggestJournalEntryNumber } from "@/lib/accounting/service";
+import { accountingToday } from "@/lib/accounting/dates";
 
 export const dynamic = "force-dynamic";
 
 export default async function JournalPage() {
   await requireAccountingUser();
-  const [entries, accounts] = await Promise.all([listJournalEntries(), listAccounts()]);
+  const today = accountingToday();
+  const [entries, accounts, suggestedNumber] = await Promise.all([
+    listJournalEntries(),
+    listAccounts(),
+    suggestJournalEntryNumber(today),
+  ]);
   const names = new Map(accounts.map((account) => [account.id, `${account.code} · ${account.name}`]));
   const reversedIds = new Set(entries.flatMap((entry) => entry.reverses_entry_id ? [entry.reverses_entry_id] : []));
   return <main className="mx-auto w-full max-w-7xl px-5 py-8"><div className="space-y-6">
@@ -25,7 +32,7 @@ export default async function JournalPage() {
           <td className="px-5 py-4 text-xs text-slate-600">{entry.source_type}</td>
           <td className="px-5 py-4"><details><summary className="cursor-pointer text-xs font-semibold text-accent">{entry.lines.length} lines</summary><div className="mt-2 space-y-1.5">{entry.lines.map((line) => <div key={line.id} className="grid grid-cols-[minmax(9rem,1fr)_auto_auto] gap-3 text-xs"><span>{names.get(line.account_id) ?? "Unknown account"}</span><span className="text-right tabular-nums">{line.debit !== "0.0000" ? line.debit : "—"}</span><span className="text-right tabular-nums">{line.credit !== "0.0000" ? line.credit : "—"}</span></div>)}</div></details></td>
           <td className="px-5 py-4"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${entry.status === "POSTED" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{ENTRY_STATUS_LABELS[entry.status] ?? entry.status}</span></td>
-          <td className="px-5 py-4"><div className="flex flex-wrap items-center gap-2">{entry.status === "DRAFT" && <><Link className="button-secondary px-3 py-1.5 text-xs" href={`/journal/${entry.id}/edit`}>Edit</Link><PostButton entryId={entry.id} /></>}{entry.status === "POSTED" && !reversedIds.has(entry.id) && <ReverseForm entryId={entry.id} suggestedNumber={`REV-${entry.entry_number}`} />}{entry.status === "POSTED" && reversedIds.has(entry.id) && <span className="text-xs text-slate-400">Reversed</span>}</div></td>
+          <td className="px-5 py-4"><div className="flex flex-wrap items-center gap-2">{entry.status === "DRAFT" && <><Link className="button-secondary px-3 py-1.5 text-xs" href={`/journal/${entry.id}/edit`}>Edit</Link><PostButton entryId={entry.id} /></>}{entry.status === "POSTED" && !reversedIds.has(entry.id) && <ReverseForm entryId={entry.id} suggestedNumber={suggestedNumber} initialDate={today} />}{entry.status === "POSTED" && reversedIds.has(entry.id) && <span className="text-xs text-slate-400">Reversed</span>}</div></td>
         </tr>)}
         {!entries.length && <tr><td colSpan={6} className="px-5 py-14 text-center"><p className="font-medium">No journal entries yet</p><p className="mt-1 text-sm text-slate-500">Create your first draft to start recording transactions.</p><Link className="button mt-4" href="/journal/new">New entry</Link></td></tr>}
         </tbody>

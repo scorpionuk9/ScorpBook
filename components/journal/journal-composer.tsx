@@ -1,18 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Decimal from "decimal.js";
 import type { Account, ExactJournalLine, JournalEntry } from "@/lib/accounting/service";
 import { ENTRY_SOURCES } from "@/lib/accounting/constants";
-import { saveDraftAction } from "@/app/actions/accounting";
+import { saveDraftAction, suggestEntryNumberAction } from "@/app/actions/accounting";
+import { accountingToday } from "@/lib/accounting/dates";
 
 type DraftEntry = JournalEntry & { lines: ExactJournalLine[] };
 type DraftLine = { account_id: string; description: string; debit: string; credit: string };
-const today = new Date().toISOString().slice(0, 10);
-
-export function JournalComposer({ accounts, draft }: { accounts: Account[]; draft?: DraftEntry }) {
+export function JournalComposer({ accounts, draft, suggestedNumber, initialDate }: { accounts: Account[]; draft?: DraftEntry; suggestedNumber?: string; initialDate?: string }) {
   const router = useRouter();
+  const today = initialDate ?? accountingToday();
+  const [entryDate, setEntryDate] = useState(draft?.entry_date ?? today);
+  const [entryNumber, setEntryNumber] = useState(draft?.entry_number ?? suggestedNumber ?? "");
+  const [currentSuggestion, setCurrentSuggestion] = useState(suggestedNumber ?? "");
+  const [useAutomaticNumber, setUseAutomaticNumber] = useState(!draft);
+  const suggestionRequest = useRef(0);
   const [lines, setLines] = useState<DraftLine[]>(draft?.lines.map((line) => ({
     account_id: line.account_id,
     description: line.description ?? "",
@@ -38,26 +43,46 @@ export function JournalComposer({ accounts, draft }: { accounts: Account[]; draf
     } : line));
   }
 
+  async function changeEntryDate(value: string) {
+    setEntryDate(value);
+    if (draft || !useAutomaticNumber || !value) return;
+    const requestId = ++suggestionRequest.current;
+    const result = await suggestEntryNumberAction(value);
+    if (requestId !== suggestionRequest.current) return;
+    if (result.ok && result.entry_number) {
+      setCurrentSuggestion(result.entry_number);
+      setEntryNumber(result.entry_number);
+    } else {
+      setMessage(result.message);
+    }
+  }
+
   async function submit(formData: FormData) {
     setBusy(true);
     setMessage("");
     const result = await saveDraftAction({
       entry_id: draft?.id,
-      entry_number: String(formData.get("entry_number") || ""),
-      entry_date: String(formData.get("entry_date") || ""),
+      entry_number: useAutomaticNumber ? "" : entryNumber,
+      entry_date: entryDate,
       description: String(formData.get("description") || ""),
       source_type: String(formData.get("source_type") || "MANUAL"),
       lines: lines.map((line) => ({ ...line, description: line.description || undefined })),
     });
     setMessage(result.message);
     setBusy(false);
-    if (result.ok) router.refresh();
+    if (result.ok && result.id && !draft) {
+      router.push(`/journal/${result.id}/edit`);
+    } else if (result.ok) {
+      setEntryNumber(result.entry_number ?? entryNumber);
+      setUseAutomaticNumber(false);
+      router.refresh();
+    }
   }
 
   return <form action={submit} className="space-y-5">
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <label className="text-xs font-semibold text-slate-600">Entry number<input required name="entry_number" maxLength={50} className="field mt-1.5" defaultValue={draft?.entry_number} placeholder="e.g. JE-2026-001" /></label>
-      <label className="text-xs font-semibold text-slate-600">Date<input required type="date" name="entry_date" className="field mt-1.5" defaultValue={draft?.entry_date ?? today} /></label>
+      <label className="text-xs font-semibold text-slate-600">Entry number<input required name="entry_number" maxLength={50} className="field mt-1.5" value={entryNumber} onChange={(event) => { setEntryNumber(event.target.value); setUseAutomaticNumber(!draft && event.target.value === currentSuggestion); }} placeholder="Auto-generated when saved" /><span className="mt-1 block font-normal text-slate-400">{draft ? "You can change the number while this is a draft." : useAutomaticNumber ? "Suggested number; finalized when you save. You can edit it." : "Custom entry number."}</span></label>
+      <label className="text-xs font-semibold text-slate-600">Date<input required type="date" name="entry_date" className="field mt-1.5" value={entryDate} onChange={(event) => void changeEntryDate(event.target.value)} /></label>
       <label className="text-xs font-semibold text-slate-600">Source<select name="source_type" className="field mt-1.5" defaultValue={draft?.source_type ?? "MANUAL"}>{ENTRY_SOURCES.map((source) => <option key={source} value={source}>{source.replace("_", " ")}</option>)}</select></label>
       <label className="text-xs font-semibold text-slate-600">Description<input name="description" maxLength={2000} className="field mt-1.5" defaultValue={draft?.description ?? ""} placeholder="Entry description" /></label>
     </div>

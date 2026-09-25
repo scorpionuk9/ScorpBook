@@ -17,7 +17,7 @@ export const accountSchema = z.object({
 
 export const journalSchema = z.object({
   entry_id: z.string().uuid().optional(),
-  entry_number: z.string().trim().min(1).max(50),
+  entry_number: z.string().trim().max(50).optional().transform((value) => value || undefined),
   entry_date: z.iso.date(),
   description: z.string().trim().max(2000).optional(),
   source_type: z.enum(ENTRY_SOURCES),
@@ -40,7 +40,7 @@ export const journalSchema = z.object({
 export const postSchema = z.object({ entry_id: z.string().uuid() });
 export const reverseSchema = z.object({
   entry_id: z.string().uuid(),
-  reversal_entry_number: z.string().trim().min(1).max(50),
+  reversal_entry_number: z.string().trim().max(50).optional().transform((value) => value || undefined),
   reversal_date: z.iso.date(),
   description: z.string().trim().max(2000).optional(),
 });

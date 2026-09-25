@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAccountingUser } from "@/lib/accounting/auth";
-import { postJournal, reverseJournal, saveAccount, saveDraftJournal } from "@/lib/accounting/service";
+import { postJournal, reverseJournal, saveAccount, saveDraftJournal, suggestJournalEntryNumber } from "@/lib/accounting/service";
 
-export type ActionResult = { ok: boolean; message: string; id?: string };
+export type ActionResult = { ok: boolean; message: string; id?: string; entry_number?: string };
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "An unexpected error occurred. Please try again.";
@@ -28,9 +28,17 @@ export async function saveAccountAction(formData: FormData): Promise<ActionResul
 export async function saveDraftAction(input: unknown): Promise<ActionResult> {
   const user = await requireAccountingUser();
   try {
-    const id = await saveDraftJournal(input, user.id);
+    const saved = await saveDraftJournal(input, user.id);
     revalidatePath("/journal");
-    return { ok: true, message: "Journal draft saved.", id };
+    return { ok: true, message: `Journal draft saved as ${saved.entry_number}.`, id: saved.id, entry_number: saved.entry_number };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function suggestEntryNumberAction(entryDate: string): Promise<ActionResult> {
+  await requireAccountingUser();
+  try {
+    const entry_number = await suggestJournalEntryNumber(entryDate);
+    return { ok: true, message: "", entry_number };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }
 
@@ -47,13 +55,13 @@ export async function postJournalAction(formData: FormData): Promise<ActionResul
 export async function reverseJournalAction(formData: FormData): Promise<ActionResult> {
   const user = await requireAccountingUser();
   try {
-    const id = await reverseJournal({
+    const reversed = await reverseJournal({
       entry_id: String(formData.get("entry_id") || ""),
       reversal_entry_number: String(formData.get("reversal_entry_number") || ""),
       reversal_date: String(formData.get("reversal_date") || ""),
       description: String(formData.get("description") || "") || undefined,
     }, user.id);
     revalidatePath("/journal");
-    return { ok: true, message: `Reversal entry created and posted (${id}).` };
+    return { ok: true, message: `Reversal entry ${reversed.entry_number} created and posted.`, id: reversed.id, entry_number: reversed.entry_number };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }
