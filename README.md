@@ -25,3 +25,4 @@ The service-role key is used only in server modules. Each page and server action
 - Reverse posted entries through `reverse_journal_entry`; the database creates and posts the inverse entry atomically and prevents duplicate reversals.
 - Browse the most recent 100 entries and inspect their lines.
 - Run a date-based trial balance from posted entries with exact decimal totals and a debit/credit balance check; inactive accounts remain visible for historical reporting.
+- Run a period-based income statement using posted revenue and expense entries, with exact decimal net income or loss calculations.

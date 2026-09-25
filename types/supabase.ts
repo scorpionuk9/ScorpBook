@@ -299,6 +299,16 @@ export type Database = {
         }
         Returns: string
       }
+      get_income_statement: {
+        Args: { p_end_date: string; p_start_date: string; p_tenant_id: string }
+        Returns: {
+          account_code: string
+          account_id: string
+          account_name: string
+          account_type: string
+          amount: string
+        }[]
+      }
       get_trial_balance: {
         Args: { p_as_of_date: string; p_tenant_id: string }
         Returns: {

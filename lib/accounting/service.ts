@@ -23,6 +23,13 @@ export type TrialBalanceRow = {
   debit_balance: string;
   credit_balance: string;
 };
+export type IncomeStatementRow = {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: "REVENUE" | "EXPENSE";
+  amount: string;
+};
 
 const numberedJournalEntrySchema = z.object({ id: z.string().uuid(), entry_number: z.string().min(1) });
 
@@ -54,6 +61,25 @@ export async function getTrialBalance(asOfDate: string): Promise<TrialBalanceRow
     credit_activity: z.string(),
     debit_balance: z.string(),
     credit_balance: z.string(),
+  })).parse(data ?? []);
+}
+
+export async function getIncomeStatement(startDate: string, endDate: string): Promise<IncomeStatementRow[]> {
+  const start = z.iso.date().parse(startDate);
+  const end = z.iso.date().parse(endDate);
+  if (start > end) throw new Error("The start date must be on or before the end date.");
+  const { data, error } = await createAdminClient().rpc("get_income_statement", {
+    p_tenant_id: SCORPBOOK_TENANT_ID,
+    p_start_date: start,
+    p_end_date: end,
+  });
+  throwOnError(error, "Failed to load income statement");
+  return z.array(z.object({
+    account_id: z.string().uuid(),
+    account_code: z.string(),
+    account_name: z.string(),
+    account_type: z.enum(["REVENUE", "EXPENSE"]),
+    amount: z.string(),
   })).parse(data ?? []);
 }
 
