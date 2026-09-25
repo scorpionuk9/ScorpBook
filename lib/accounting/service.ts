@@ -30,6 +30,15 @@ export type IncomeStatementRow = {
   account_type: "REVENUE" | "EXPENSE";
   amount: string;
 };
+export type BalanceSheetAccountRow = {
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  account_type: "ASSET" | "LIABILITY" | "EQUITY";
+  is_active: boolean;
+  amount: string;
+};
+export type BalanceSheetData = { accounts: BalanceSheetAccountRow[]; current_earnings: string };
 
 const numberedJournalEntrySchema = z.object({ id: z.string().uuid(), entry_number: z.string().min(1) });
 
@@ -81,6 +90,26 @@ export async function getIncomeStatement(startDate: string, endDate: string): Pr
     account_type: z.enum(["REVENUE", "EXPENSE"]),
     amount: z.string(),
   })).parse(data ?? []);
+}
+
+export async function getBalanceSheet(asOfDate: string): Promise<BalanceSheetData> {
+  const date = z.iso.date().parse(asOfDate);
+  const { data, error } = await createAdminClient().rpc("get_balance_sheet", {
+    p_tenant_id: SCORPBOOK_TENANT_ID,
+    p_as_of_date: date,
+  });
+  throwOnError(error, "Failed to load balance sheet");
+  return z.object({
+    accounts: z.array(z.object({
+      account_id: z.string().uuid(),
+      account_code: z.string(),
+      account_name: z.string(),
+      account_type: z.enum(["ASSET", "LIABILITY", "EQUITY"]),
+      is_active: z.boolean(),
+      amount: z.string(),
+    })),
+    current_earnings: z.string(),
+  }).parse(data);
 }
 
 export async function saveAccount(input: unknown): Promise<void> {
