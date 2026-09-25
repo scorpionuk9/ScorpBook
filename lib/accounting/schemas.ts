@@ -15,6 +15,18 @@ export const accountSchema = z.object({
   is_active: z.boolean(),
 });
 
+export const supplierSchema = z.object({
+  id: z.string().uuid().optional(),
+  supplier_code: z.string().trim().min(1).max(20),
+  name: z.string().trim().min(1).max(150),
+  email: z.string().trim().max(254).optional().transform((value) => value || undefined).pipe(z.email().optional()),
+  phone: z.string().trim().max(50).optional().transform((value) => value || undefined),
+  tax_number: z.string().trim().max(100).optional().transform((value) => value || undefined),
+  address: z.string().trim().max(1000).optional().transform((value) => value || undefined),
+  default_expense_account_id: z.string().uuid().optional().transform((value) => value || undefined),
+  is_active: z.boolean(),
+});
+
 export const journalSchema = z.object({
   entry_id: z.string().uuid().optional(),
   entry_number: z.string().trim().max(50).optional().transform((value) => value || undefined),

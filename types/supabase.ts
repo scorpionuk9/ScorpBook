@@ -233,6 +233,104 @@ export type Database = {
           },
         ]
       }
+      accounting_supplier_events: {
+        Row: {
+          actor_id: string | null
+          details: Json
+          event_type: string
+          id: string
+          occurred_at: string
+          supplier_id: string
+          tenant_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          details?: Json
+          event_type: string
+          id?: string
+          occurred_at?: string
+          supplier_id: string
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          details?: Json
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          supplier_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_supplier_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_suppliers: {
+        Row: {
+          address: string | null
+          created_at: string
+          default_expense_account_id: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          supplier_code: string
+          tax_number: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          default_expense_account_id?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          supplier_code: string
+          tax_number?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          default_expense_account_id?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          supplier_code?: string
+          tax_number?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_suppliers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_accounting_suppliers_default_expense"
+            columns: ["tenant_id", "default_expense_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
       accounting_tenants: {
         Row: {
           created_at: string
@@ -352,6 +450,22 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: Json
+      }
+      save_accounting_supplier: {
+        Args: {
+          p_actor_id: string
+          p_address?: string
+          p_default_expense_account_id?: string
+          p_email?: string
+          p_is_active?: boolean
+          p_name: string
+          p_phone?: string
+          p_supplier_code: string
+          p_supplier_id?: string
+          p_tax_number?: string
+          p_tenant_id: string
+        }
+        Returns: string
       }
       save_draft_journal_entry: {
         Args: {

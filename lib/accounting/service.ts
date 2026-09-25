@@ -4,9 +4,10 @@ import type { Tables } from "@/types/supabase";
 import { createAdminClient } from "@/lib/supabase/server";
 import { SCORPBOOK_TENANT_ID } from "@/lib/accounting/constants";
 import { z } from "zod";
-import { accountSchema, journalSchema, postSchema, reverseSchema } from "@/lib/accounting/schemas";
+import { accountSchema, journalSchema, postSchema, reverseSchema, supplierSchema } from "@/lib/accounting/schemas";
 
 export type Account = Tables<"accounting_accounts">;
+export type Supplier = Tables<"accounting_suppliers">;
 export type JournalEntry = Tables<"accounting_journal_entries">;
 export type JournalLine = Tables<"accounting_journal_lines">;
 export type ExactJournalLine = Omit<JournalLine, "debit" | "credit"> & { debit: string; credit: string };
@@ -51,6 +52,41 @@ export async function listAccounts(): Promise<Account[]> {
     .select("*").eq("tenant_id", SCORPBOOK_TENANT_ID).order("code");
   throwOnError(error, "Failed to load accounts");
   return data ?? [];
+}
+
+export async function listSuppliers(): Promise<Supplier[]> {
+  const { data, error } = await createAdminClient().from("accounting_suppliers")
+    .select("*").eq("tenant_id", SCORPBOOK_TENANT_ID).order("name").order("supplier_code");
+  throwOnError(error, "Failed to load suppliers");
+  return data ?? [];
+}
+
+export async function saveSupplier(input: unknown, actorId: string): Promise<void> {
+  const supplier = supplierSchema.parse(input);
+  const client = createAdminClient();
+  if (supplier.default_expense_account_id) {
+    const { data: expenseAccount, error } = await client.from("accounting_accounts")
+      .select("id").eq("tenant_id", SCORPBOOK_TENANT_ID).eq("id", supplier.default_expense_account_id)
+      .eq("type", "EXPENSE").eq("is_active", true).maybeSingle();
+    throwOnError(error, "Failed to validate default expense account");
+    if (!expenseAccount) throw new Error("Choose an active expense account for this supplier.");
+  }
+
+  const { data, error } = await client.rpc("save_accounting_supplier", {
+    p_tenant_id: SCORPBOOK_TENANT_ID,
+    p_actor_id: actorId,
+    p_supplier_code: supplier.supplier_code,
+    p_name: supplier.name,
+    p_email: supplier.email,
+    p_phone: supplier.phone,
+    p_tax_number: supplier.tax_number,
+    p_address: supplier.address,
+    p_default_expense_account_id: supplier.default_expense_account_id,
+    p_is_active: supplier.is_active,
+    p_supplier_id: supplier.id,
+  });
+  throwOnError(error, "Failed to save supplier");
+  if (!data) throw new Error("The database did not return the saved supplier ID.");
 }
 
 export async function getTrialBalance(asOfDate: string): Promise<TrialBalanceRow[]> {

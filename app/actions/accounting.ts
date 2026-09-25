@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAccountingUser } from "@/lib/accounting/auth";
-import { postJournal, reverseJournal, saveAccount, saveDraftJournal, suggestJournalEntryNumber } from "@/lib/accounting/service";
+import { postJournal, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, suggestJournalEntryNumber } from "@/lib/accounting/service";
 
 export type ActionResult = { ok: boolean; message: string; id?: string; entry_number?: string };
 
@@ -22,6 +22,26 @@ export async function saveAccountAction(formData: FormData): Promise<ActionResul
     });
     revalidatePath("/accounts");
     return { ok: true, message: "Account saved." };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function saveSupplierAction(formData: FormData): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    const id = String(formData.get("id") || "") || undefined;
+    await saveSupplier({
+      id,
+      supplier_code: String(formData.get("supplier_code") || ""),
+      name: String(formData.get("name") || ""),
+      email: String(formData.get("email") || ""),
+      phone: String(formData.get("phone") || ""),
+      tax_number: String(formData.get("tax_number") || ""),
+      address: String(formData.get("address") || ""),
+      default_expense_account_id: String(formData.get("default_expense_account_id") || "") || undefined,
+      is_active: id ? formData.get("is_active") === "on" : true,
+    }, user.id);
+    revalidatePath("/suppliers");
+    return { ok: true, message: "Supplier saved." };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }
 
