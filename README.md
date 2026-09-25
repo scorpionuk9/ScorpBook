@@ -19,7 +19,7 @@ The service-role key is used only in server modules. Each page and server action
 ## Implemented workflows
 
 - Browse and maintain the chart of accounts. New accounts can be added; existing accounts can be renamed or activated/deactivated. Accounts are never deleted, and their code/type are immutable through the app.
-- Maintain a tenant-isolated supplier directory with immutable supplier codes, contact/tax details, optional default expense accounts, deactivation, and append-only audit events. Supplier master records do not post accounting transactions.
+- Maintain a tenant-isolated supplier directory with atomically generated immutable `SUP-000001` codes, contact/tax details, optional default expense accounts, deactivation, and append-only audit events. Supplier master records do not post accounting transactions.
 - Create and revise journal drafts using exact decimal strings; show debit and credit totals with `decimal.js`.
 - Suggest editable journal numbers in `JE-YYYY-000001` format, with sequences scoped to the entry's calendar year. The database allocates numbers atomically when a draft or reversal is saved; manual values remain subject to tenant-wide uniqueness, and standard-format overrides advance the matching year counter.
 - Post drafts through `post_journal_entry`; the database enforces final balance, active accounts, and immutability.

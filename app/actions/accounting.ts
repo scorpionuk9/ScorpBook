@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAccountingUser } from "@/lib/accounting/auth";
 import { postJournal, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, suggestJournalEntryNumber } from "@/lib/accounting/service";
 
-export type ActionResult = { ok: boolean; message: string; id?: string; entry_number?: string };
+export type ActionResult = { ok: boolean; message: string; id?: string; entry_number?: string; supplier_code?: string };
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "An unexpected error occurred. Please try again.";
@@ -29,7 +29,7 @@ export async function saveSupplierAction(formData: FormData): Promise<ActionResu
   const user = await requireAccountingUser();
   try {
     const id = String(formData.get("id") || "") || undefined;
-    await saveSupplier({
+    const supplier_code = await saveSupplier({
       id,
       supplier_code: String(formData.get("supplier_code") || ""),
       name: String(formData.get("name") || ""),
@@ -41,7 +41,7 @@ export async function saveSupplierAction(formData: FormData): Promise<ActionResu
       is_active: id ? formData.get("is_active") === "on" : true,
     }, user.id);
     revalidatePath("/suppliers");
-    return { ok: true, message: "Supplier saved." };
+    return { ok: true, message: `Supplier ${supplier_code} saved.`, supplier_code };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }
 

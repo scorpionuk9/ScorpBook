@@ -233,6 +233,32 @@ export type Database = {
           },
         ]
       }
+      accounting_supplier_code_counters: {
+        Row: {
+          last_number: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          last_number?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          last_number?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_supplier_code_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_supplier_events: {
         Row: {
           actor_id: string | null
@@ -397,6 +423,7 @@ export type Database = {
         }
         Returns: string
       }
+      allocate_supplier_code: { Args: { p_tenant_id: string }; Returns: string }
       get_balance_sheet: {
         Args: { p_as_of_date: string; p_tenant_id: string }
         Returns: Json
@@ -501,6 +528,7 @@ export type Database = {
         Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
       }
+      suggest_supplier_code: { Args: { p_tenant_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

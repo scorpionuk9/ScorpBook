@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Account, Supplier } from "@/lib/accounting/service";
 import { SupplierForm } from "@/components/suppliers/supplier-form";
 
-export function SupplierManager({ suppliers, expenseAccounts }: { suppliers: Supplier[]; expenseAccounts: Account[] }) {
+export function SupplierManager({ suppliers, expenseAccounts, suggestedCode }: { suppliers: Supplier[]; expenseAccounts: Account[]; suggestedCode: string }) {
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [formVersion, setFormVersion] = useState(0);
   const expenseNames = new Map(expenseAccounts.map((account) => [account.id, `${account.code} · ${account.name}`]));
@@ -25,6 +25,6 @@ export function SupplierManager({ suppliers, expenseAccounts }: { suppliers: Sup
         {!suppliers.length && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">No suppliers yet. Add a supplier to prepare for bill entry.</td></tr>}</tbody>
       </table></div>
     </section>
-    <section className="card h-fit p-5"><h2 className="font-semibold">{editing ? "Edit supplier" : "Add supplier"}</h2><p className="mt-1 text-sm text-slate-500">Supplier codes stay fixed after creation. Deactivate a supplier to keep historical references.</p><div className="mt-4"><SupplierForm key={`${editing?.id ?? "new"}-${formVersion}`} supplier={editing ?? undefined} expenseAccounts={expenseAccounts} onSaved={() => { setEditing(null); setFormVersion((version) => version + 1); }} onCancel={() => setEditing(null)} /></div></section>
+    <section className="card h-fit p-5"><h2 className="font-semibold">{editing ? "Edit supplier" : "Add supplier"}</h2><p className="mt-1 text-sm text-slate-500">Supplier codes stay fixed after creation. Deactivate a supplier to keep historical references.</p><div className="mt-4"><SupplierForm key={`${editing?.id ?? "new"}-${suggestedCode}-${formVersion}`} supplier={editing ?? undefined} suggestedCode={suggestedCode} expenseAccounts={expenseAccounts} onSaved={() => { setEditing(null); setFormVersion((version) => version + 1); }} onCancel={() => setEditing(null)} /></div></section>
   </div>;
 }

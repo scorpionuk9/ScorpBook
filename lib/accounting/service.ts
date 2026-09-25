@@ -61,7 +61,16 @@ export async function listSuppliers(): Promise<Supplier[]> {
   return data ?? [];
 }
 
-export async function saveSupplier(input: unknown, actorId: string): Promise<void> {
+export async function suggestSupplierCode(): Promise<string> {
+  const { data, error } = await createAdminClient().rpc("suggest_supplier_code", {
+    p_tenant_id: SCORPBOOK_TENANT_ID,
+  });
+  throwOnError(error, "Failed to suggest supplier code");
+  if (!data) throw new Error("The database did not return a supplier code suggestion.");
+  return data;
+}
+
+export async function saveSupplier(input: unknown, actorId: string): Promise<string> {
   const supplier = supplierSchema.parse(input);
   const client = createAdminClient();
   if (supplier.default_expense_account_id) {
@@ -87,6 +96,11 @@ export async function saveSupplier(input: unknown, actorId: string): Promise<voi
   });
   throwOnError(error, "Failed to save supplier");
   if (!data) throw new Error("The database did not return the saved supplier ID.");
+  const { data: savedSupplier, error: readError } = await client.from("accounting_suppliers")
+    .select("supplier_code").eq("tenant_id", SCORPBOOK_TENANT_ID).eq("id", data).single();
+  throwOnError(readError, "Failed to read the saved supplier code");
+  if (!savedSupplier) throw new Error("The saved supplier could not be found.");
+  return savedSupplier.supplier_code;
 }
 
 export async function getTrialBalance(asOfDate: string): Promise<TrialBalanceRow[]> {

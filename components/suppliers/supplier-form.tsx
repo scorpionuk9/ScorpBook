@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import type { Account, Supplier } from "@/lib/accounting/service";
 import { saveSupplierAction } from "@/app/actions/accounting";
 
-export function SupplierForm({ supplier, expenseAccounts, onSaved, onCancel }: {
+export function SupplierForm({ supplier, suggestedCode, expenseAccounts, onSaved, onCancel }: {
   supplier?: Supplier;
+  suggestedCode: string;
   expenseAccounts: Account[];
   onSaved: () => void;
   onCancel: () => void;
@@ -39,7 +40,7 @@ export function SupplierForm({ supplier, expenseAccounts, onSaved, onCancel }: {
   return <form action={submit} className="space-y-3">
     {supplier && <input type="hidden" name="id" value={supplier.id} />}
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-      <label className="block text-xs font-medium text-slate-600">Supplier code<input className="field mt-1" name="supplier_code" required maxLength={20} defaultValue={supplier?.supplier_code} readOnly={Boolean(supplier)} placeholder="e.g. SUP-001" /></label>
+      <label className="block text-xs font-medium text-slate-600">Supplier code<input className="field mt-1" name="supplier_code" required maxLength={20} defaultValue={supplier?.supplier_code ?? suggestedCode} readOnly /><span className="mt-1 block font-normal text-slate-400">Automatically assigned when saved; this preview may change if another supplier is added at the same time.</span></label>
       <label className="block text-xs font-medium text-slate-600">Supplier name<input className="field mt-1" name="name" required maxLength={150} defaultValue={supplier?.name} /></label>
       <label className="block text-xs font-medium text-slate-600">Email<input className="field mt-1" name="email" type="email" maxLength={254} defaultValue={supplier?.email ?? ""} /></label>
       <label className="block text-xs font-medium text-slate-600">Phone<input className="field mt-1" name="phone" maxLength={50} defaultValue={supplier?.phone ?? ""} /></label>
