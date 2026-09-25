@@ -7,7 +7,7 @@ import type { Database } from "@/types/supabase";
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
-  if (!value) throw new Error(`伺服器缺少必要環境變數 ${name}。`);
+  if (!value) throw new Error(`Missing required server environment variable: ${name}.`);
   return value;
 }
 

@@ -3,15 +3,15 @@ export const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENS
 export const ENTRY_SOURCES = ["MANUAL", "BANK_IMPORT", "SCORPINVOICE"] as const;
 
 export const ACCOUNT_TYPE_LABELS: Record<(typeof ACCOUNT_TYPES)[number], string> = {
-  ASSET: "資產",
-  LIABILITY: "負債",
-  EQUITY: "權益",
-  REVENUE: "收入",
-  EXPENSE: "費用",
+  ASSET: "Asset",
+  LIABILITY: "Liability",
+  EQUITY: "Equity",
+  REVENUE: "Revenue",
+  EXPENSE: "Expense",
 };
 
 export const ENTRY_STATUS_LABELS: Record<string, string> = {
-  DRAFT: "草稿",
-  POSTED: "已過帳",
-  VOIDED: "已作廢",
+  DRAFT: "Draft",
+  POSTED: "Posted",
+  VOIDED: "Voided",
 };

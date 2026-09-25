@@ -2,9 +2,9 @@ import { z } from "zod";
 import Decimal from "decimal.js";
 import { ACCOUNT_TYPES, ENTRY_SOURCES } from "@/lib/accounting/constants";
 
-const amount = z.string().trim().regex(/^\d{1,11}(?:\.\d{1,4})?$/, "金額最多 4 位小數且不可為負數").refine(
+const amount = z.string().trim().regex(/^\d{1,11}(?:\.\d{1,4})?$/, "Enter a non-negative amount with up to 4 decimal places.").refine(
   (value) => new Decimal(value).lte("99999999999.9999"),
-  "金額超出 NUMERIC(15,4) 範圍",
+  "Amount exceeds the NUMERIC(15,4) limit.",
 );
 
 export const accountSchema = z.object({
@@ -32,7 +32,7 @@ export const journalSchema = z.object({
     const debit = new Decimal(line.debit);
     const credit = new Decimal(line.credit);
     if (debit.gt(0) === credit.gt(0)) {
-      ctx.addIssue({ code: "custom", path: ["lines", index], message: "每行只能填借方或貸方其中一邊" });
+      ctx.addIssue({ code: "custom", path: ["lines", index], message: "Each line must contain a debit or a credit, but not both." });
     }
   });
 });

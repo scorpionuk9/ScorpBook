@@ -22,7 +22,7 @@ export default async function EditJournalPage({ params }: { params: Promise<{ id
   if (entry.status !== "DRAFT") redirect("/journal");
   const draft = { ...(entry as JournalEntry), lines: (lines ?? []) as ExactJournalLine[] };
   return <main className="mx-auto w-full max-w-7xl px-5 py-8"><div className="space-y-6">
-    <div><Link href="/journal" className="text-sm font-medium text-accent">← 返回日記帳</Link><p className="mt-5 text-sm font-semibold text-accent">日記帳草稿</p><h1 className="mt-1 text-3xl font-bold">編輯 {entry.entry_number}</h1><p className="mt-2 text-sm text-slate-500">只有草稿可以編輯。</p></div>
+    <div><Link href="/journal" className="text-sm font-medium text-accent">← Back to journal</Link><p className="mt-5 text-sm font-semibold text-accent">JOURNAL DRAFT</p><h1 className="mt-1 text-3xl font-bold">Edit {entry.entry_number}</h1><p className="mt-2 text-sm text-slate-500">Only draft entries can be edited.</p></div>
     <section className="card p-5 sm:p-7"><JournalComposer accounts={accounts} draft={draft} /></section>
   </div></main>;
 }

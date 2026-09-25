@@ -11,9 +11,9 @@ export function Navigation() {
     <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
       <Link href="/journal" className="text-lg font-bold tracking-tight text-ink">ScorpBook <span className="ml-1 text-xs font-medium text-slate-500">ACCOUNTING</span></Link>
       <nav className="flex items-center gap-2 text-sm">
-        <Link className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100" href="/journal">日記帳</Link>
-        <Link className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100" href="/accounts">會計科目</Link>
-        <form action={logoutAction}><button className="rounded-md px-3 py-2 text-slate-500 hover:bg-slate-100" type="submit">登出</button></form>
+        <Link className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100" href="/journal">Journal</Link>
+        <Link className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100" href="/accounts">Chart of Accounts</Link>
+        <form action={logoutAction}><button className="rounded-md px-3 py-2 text-slate-500 hover:bg-slate-100" type="submit">Sign out</button></form>
       </nav>
     </div>
   </header>;
@@ -22,5 +22,5 @@ export function Navigation() {
 export function SiteFooter() {
   const pathname = usePathname();
   if (pathname === "/login" || pathname === "/signup" || pathname === "/unauthorized" || pathname.startsWith("/auth/")) return null;
-  return <footer className="mx-auto w-full max-w-7xl px-5 pb-8 text-xs text-slate-400">Scorpia Tech Ltd · 固定租戶總帳</footer>;
+  return <footer className="mx-auto w-full max-w-7xl px-5 pb-8 text-xs text-slate-400">Scorpia Tech Ltd · General Ledger</footer>;
 }
