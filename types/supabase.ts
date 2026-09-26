@@ -391,6 +391,85 @@ export type Database = {
           },
         ]
       }
+      accounting_period_events: {
+        Row: {
+          actor_id: string | null
+          details: Json
+          event_type: string
+          id: string
+          occurred_at: string
+          period_id: string
+          tenant_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          details?: Json
+          event_type: string
+          id?: string
+          occurred_at?: string
+          period_id: string
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          details?: Json
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          period_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_period_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          period_end: string
+          period_start: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          period_end: string
+          period_start: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_periods_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_supplier_bill_events: {
         Row: {
           actor_id: string | null
@@ -793,6 +872,10 @@ export type Database = {
         Returns: string
       }
       allocate_supplier_code: { Args: { p_tenant_id: string }; Returns: string }
+      close_accounting_period: {
+        Args: { p_actor_id: string; p_period_id: string; p_tenant_id: string }
+        Returns: Json
+      }
       complete_bank_reconciliation: {
         Args: {
           p_actor_id: string
@@ -812,6 +895,18 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      ensure_accounting_period: {
+        Args: { p_period_date: string; p_tenant_id: string }
+        Returns: undefined
+      }
+      ensure_accounting_period_range_open: {
+        Args: {
+          p_period_end: string
+          p_period_start: string
+          p_tenant_id: string
+        }
+        Returns: undefined
       }
       get_balance_sheet: {
         Args: { p_as_of_date: string; p_tenant_id: string }

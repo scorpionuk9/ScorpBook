@@ -64,6 +64,7 @@ export type BankJournalCandidate = {
 export type BankReconciliationDetail = {
   reconciliation: BankReconciliation; lines: BankStatementLine[]; candidates: BankJournalCandidate[];
 };
+export type AccountingPeriod = Tables<"accounting_periods">;
 
 const numberedJournalEntrySchema = z.object({ id: z.string().uuid(), entry_number: z.string().min(1) });
 
@@ -297,6 +298,21 @@ export async function completeBankReconciliation(input: unknown, actorId: string
     p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_reconciliation_id: reconciliation_id,
   });
   throwOnError(error, "Failed to complete bank reconciliation");
+}
+
+export async function listAccountingPeriods(): Promise<AccountingPeriod[]> {
+  const { data, error } = await createAdminClient().from("accounting_periods").select("*")
+    .eq("tenant_id", SCORPBOOK_TENANT_ID).order("period_start", { ascending: false }).limit(100);
+  throwOnError(error, "Failed to load accounting periods");
+  return data ?? [];
+}
+
+export async function closeAccountingPeriod(periodId: string, actorId: string): Promise<void> {
+  const id = z.string().uuid().parse(periodId);
+  const { error } = await createAdminClient().rpc("close_accounting_period", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_period_id: id,
+  });
+  throwOnError(error, "Failed to close accounting period");
 }
 
 export async function getTrialBalance(asOfDate: string): Promise<TrialBalanceRow[]> {

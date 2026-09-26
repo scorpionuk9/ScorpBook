@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAccountingUser } from "@/lib/accounting/auth";
-import { completeBankReconciliation, createBankReconciliation, importBankStatementLines, matchBankStatementLine, postJournal, postSupplierBill, recordSupplierBillPayment, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, saveSupplierBill, suggestJournalEntryNumber, unmatchBankStatementLine } from "@/lib/accounting/service";
+import { closeAccountingPeriod, completeBankReconciliation, createBankReconciliation, importBankStatementLines, matchBankStatementLine, postJournal, postSupplierBill, recordSupplierBillPayment, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, saveSupplierBill, suggestJournalEntryNumber, unmatchBankStatementLine } from "@/lib/accounting/service";
 
 export type ActionResult = { ok: boolean; message: string; id?: string; entry_number?: string; supplier_code?: string };
 
@@ -127,6 +127,18 @@ export async function completeBankReconciliationAction(reconciliationId: string)
     revalidatePath("/banking");
     revalidatePath(`/banking/${reconciliationId}`);
     return { ok: true, message: "Bank reconciliation completed." };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function closeAccountingPeriodAction(periodId: string): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    await closeAccountingPeriod(periodId, user.id);
+    revalidatePath("/periods");
+    revalidatePath("/journal");
+    revalidatePath("/bills");
+    revalidatePath("/banking");
+    return { ok: true, message: "Accounting period closed and locked." };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }
 
