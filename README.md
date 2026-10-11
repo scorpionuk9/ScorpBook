@@ -17,6 +17,16 @@ ScorpBook is the single-company accounting app for Scorpia Tech Ltd. Its journal
 
 The service-role key is used only in server modules. Each page and server action requires a valid Supabase Auth session and an allowlisted user ID. Direct browser access to the ledger remains blocked by RLS. The current app is intentionally tied to tenant `00000000-0000-4000-8000-000000000001`.
 
+## Deploy
+
+Production runs on Cloudflare Workers at <https://scorpbook.scorpiatech.com> (Worker `scorpbook`) via OpenNext. Deploy from a machine with a complete `.env.local`:
+
+```bash
+npm run deploy
+```
+
+`.env.local` values are bundled into the Worker at build time, so never leave `SCORPINVOICE_WEBHOOK_SECRET` in it when deploying; that secret is set with `npx wrangler secret put SCORPINVOICE_WEBHOOK_SECRET`. Keep `next` on a version that `@opennextjs/cloudflare` supports (16.3.x as of Oct 2026; 16.4 fails at runtime). If a deploy breaks, `npx wrangler rollback` restores the previous version.
+
 ## Implemented workflows
 
 - Land on a dashboard after sign-in showing money in the bank, receivables, payables, net VAT, profit this month/year, and outstanding tasks. A Simple/Accountant toggle (per-browser cookie) switches between plain-language labels and standard accounting terms.

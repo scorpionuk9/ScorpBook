@@ -9,3 +9,8 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+
+# Cloudflare / OpenNext
+.open-next/
+.wrangler/
+.dev.vars*
