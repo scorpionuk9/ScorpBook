@@ -4,8 +4,9 @@ import type { Json, Tables } from "@/types/supabase";
 import { createAdminClient } from "@/lib/supabase/server";
 import { SCORPBOOK_TENANT_ID } from "@/lib/accounting/constants";
 import { z } from "zod";
-import { accountSchema, bankMatchSchema, bankReconciliationSchema, bankStatementLineIdSchema, bankStatementRowsSchema, completeBankReconciliationSchema, journalSchema, postSchema, reverseSchema, supplierBillPaymentSchema, supplierBillSchema, supplierSchema } from "@/lib/accounting/schemas";
+import { accountSchema, guidedTransactionSchema, bankMatchSchema, bankReconciliationSchema, bankStatementLineIdSchema, bankStatementRowsSchema, completeBankReconciliationSchema, journalSchema, postSchema, reverseSchema, supplierBillPaymentSchema, supplierBillSchema, supplierSchema } from "@/lib/accounting/schemas";
 import Decimal from "decimal.js";
+import { buildGuidedTransaction } from "@/lib/accounting/guided";
 
 export type Account = Tables<"accounting_accounts">;
 export type Supplier = Tables<"accounting_suppliers">;
@@ -509,4 +510,17 @@ export async function getDashboardSummary(today: string): Promise<DashboardSumma
     open_reconciliation_count: openReconciliations.count ?? 0,
     closable_periods: periods.data ?? [],
   };
+}
+
+export async function recordGuidedTransaction(input: unknown, actorId: string): Promise<NumberedJournalEntry> {
+  const guided = guidedTransactionSchema.parse(input);
+  // Rebuild the lines from current accounts; the browser preview is never trusted.
+  const built = buildGuidedTransaction(guided, await listAccounts());
+  if (!built.ok) throw new Error(built.error);
+  const { data, error } = await createAdminClient().rpc("record_guided_transaction", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_entry_date: guided.entry_date, p_lines: built.lines as unknown as Json,
+    p_description: guided.description, p_scenario: guided.scenario, p_actor_id: actorId,
+  });
+  throwOnError(error, "Failed to record transaction");
+  return numberedJournalEntrySchema.parse(data);
 }

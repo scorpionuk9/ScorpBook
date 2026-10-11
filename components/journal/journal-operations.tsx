@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { postJournalAction, reverseJournalAction, suggestEntryNumberAction } from "@/app/actions/accounting";
 
-export function PostButton({ entryId }: { entryId: string }) {
+export function PostButton({ entryId, simple = false }: { entryId: string; simple?: boolean }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -17,12 +17,12 @@ export function PostButton({ entryId }: { entryId: string }) {
   }
   return <form action={post} className="flex items-center gap-2">
     <input type="hidden" name="entry_id" value={entryId} />
-    <button className="button px-3 py-1.5 text-xs" disabled={busy} type="submit">{busy ? "Processing…" : "Post"}</button>
+    <button className="button px-3 py-1.5 text-xs" disabled={busy} type="submit">{busy ? "Processing…" : simple ? "Confirm" : "Post"}</button>
     {message && <span role="status" className="text-xs text-red-700">{message}</span>}
   </form>;
 }
 
-export function ReverseForm({ entryId, suggestedNumber, initialDate }: { entryId: string; suggestedNumber: string; initialDate: string }) {
+export function ReverseForm({ entryId, suggestedNumber, initialDate, simple = false }: { entryId: string; suggestedNumber: string; initialDate: string; simple?: boolean }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [message, setMessage] = useState("");
@@ -71,16 +71,17 @@ export function ReverseForm({ entryId, suggestedNumber, initialDate }: { entryId
     }
   }
   return <>
-    <button type="button" className="button-secondary px-3 py-1.5 text-xs" onClick={() => { setMessage(""); setHasError(false); dialogRef.current?.showModal(); }}>Reverse</button>
+    <button type="button" className="button-secondary px-3 py-1.5 text-xs" onClick={() => { setMessage(""); setHasError(false); dialogRef.current?.showModal(); }}>{simple ? "Undo" : "Reverse"}</button>
     <dialog ref={dialogRef} aria-labelledby={`reverse-title-${entryId}`} className="fixed inset-0 m-auto w-[min(28rem,calc(100%-2rem))] max-w-none rounded-xl border border-slate-200 bg-white p-0 text-left shadow-2xl backdrop:bg-slate-900/40">
     <form action={reverse} className="space-y-4 p-5">
       <input type="hidden" name="entry_id" value={entryId} />
-      <h2 id={`reverse-title-${entryId}`} className="text-base font-semibold">Create reversing entry</h2>
-      <label className="block text-xs font-medium text-slate-600">Reversal entry number<input className="field mt-1" name="reversal_entry_number" required value={entryNumber} onChange={(event) => { setEntryNumber(event.target.value); setUseAutomaticNumber(event.target.value === currentSuggestion); }} maxLength={50} /><span className="mt-1 block font-normal text-slate-400">{useAutomaticNumber ? "Suggested; finalized when saved. You can edit it." : "Custom entry number."}</span></label>
-      <label className="block text-xs font-medium text-slate-600">Reversal date<input className="field mt-1" name="reversal_date" type="date" required value={reversalDate} onChange={(event) => void changeReversalDate(event.target.value)} /></label>
+      <h2 id={`reverse-title-${entryId}`} className="text-base font-semibold">{simple ? "Undo this transaction" : "Create reversing entry"}</h2>
+      {simple && <p className="text-sm text-slate-600">This adds an opposite transaction that cancels it out. The original stays in your history, so nothing is lost.</p>}
+      <label className={`${simple ? "hidden" : "block"} text-xs font-medium text-slate-600`}>Reversal entry number<input className="field mt-1" name="reversal_entry_number" required value={entryNumber} onChange={(event) => { setEntryNumber(event.target.value); setUseAutomaticNumber(event.target.value === currentSuggestion); }} maxLength={50} /><span className="mt-1 block font-normal text-slate-400">{useAutomaticNumber ? "Suggested; finalized when saved. You can edit it." : "Custom entry number."}</span></label>
+      <label className="block text-xs font-medium text-slate-600">{simple ? "Date of the undo" : "Reversal date"}<input className="field mt-1" name="reversal_date" type="date" required value={reversalDate} onChange={(event) => void changeReversalDate(event.target.value)} /></label>
       <label className="block text-xs font-medium text-slate-600">Description<input className="field mt-1" name="description" maxLength={2000} placeholder="Defaults to the original entry reference" /></label>
       {message && <p role="status" className={`text-xs ${hasError ? "text-red-700" : "text-emerald-700"}`}>{message}</p>}
-      <div className="flex justify-end gap-2"><button type="button" className="button-secondary" disabled={busy} onClick={() => dialogRef.current?.close()}>Cancel</button><button className="button" disabled={busy} type="submit">{busy ? "Creating…" : "Confirm reversal and post"}</button></div>
+      <div className="flex justify-end gap-2"><button type="button" className="button-secondary" disabled={busy} onClick={() => dialogRef.current?.close()}>Cancel</button><button className="button" disabled={busy} type="submit">{busy ? "Creating…" : simple ? "Undo transaction" : "Confirm reversal and post"}</button></div>
     </form>
     </dialog>
   </>;

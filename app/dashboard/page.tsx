@@ -1,8 +1,8 @@
 import Link from "next/link";
 import Decimal from "decimal.js";
 import { requireAccountingUser } from "@/lib/accounting/auth";
-import { getDashboardSummary, getIncomeStatement, type IncomeStatementRow, type TrialBalanceRow } from "@/lib/accounting/service";
-import { DASHBOARD_ACCOUNT_CODES as CODES } from "@/lib/accounting/constants";
+import { getDashboardSummary, getIncomeStatement, listAccounts, type IncomeStatementRow, type TrialBalanceRow } from "@/lib/accounting/service";
+import { isMoneyAccount } from "@/lib/accounting/guided";
 import { accountingToday } from "@/lib/accounting/dates";
 import { getViewMode } from "@/lib/ui/view-mode-server";
 import { formatMoney } from "@/lib/ui/format";
@@ -42,19 +42,23 @@ export default async function DashboardPage() {
   const today = accountingToday();
   const monthStart = `${today.slice(0, 7)}-01`;
   const yearStart = `${today.slice(0, 4)}-01-01`;
-  const [summary, monthRows, yearRows] = await Promise.all([
+  const [summary, monthRows, yearRows, accounts] = await Promise.all([
     getDashboardSummary(today),
     getIncomeStatement(monthStart, today),
     getIncomeStatement(yearStart, today),
+    listAccounts(),
   ]);
 
-  const byCode = new Map(summary.balances.map((row) => [row.account_code, row]));
-  const codeBalance = (code: string) => { const row = byCode.get(code); return row ? balance(row) : new Decimal(0); };
-  const bankRows = summary.balances.filter((row) => row.account_type === "ASSET" && row.account_code.startsWith(CODES.bankPrefix) && !balance(row).isZero());
+  const byId = new Map(summary.balances.map((row) => [row.account_id, row]));
+  const roleAccount = new Map(accounts.flatMap((account) => account.system_role ? [[account.system_role, account] as const] : []));
+  const roleBalance = (role: string) => { const account = roleAccount.get(role); const row = account && byId.get(account.id); return row ? balance(row) : new Decimal(0); };
+  const roleCode = (role: string) => roleAccount.get(role)?.code ?? "—";
+  const moneyIds = new Set(accounts.filter(isMoneyAccount).map((account) => account.id));
+  const bankRows = summary.balances.filter((row) => moneyIds.has(row.account_id) && !balance(row).isZero());
   const cash = bankRows.reduce((total, row) => total.plus(balance(row)), new Decimal(0));
-  const owedToYou = codeBalance(CODES.receivables);
-  const youOwe = codeBalance(CODES.payables).negated();
-  const vatDue = codeBalance(CODES.vatPayable).negated().minus(codeBalance(CODES.vatRecoverable));
+  const owedToYou = roleBalance("RECEIVABLES");
+  const youOwe = roleBalance("PAYABLES").negated();
+  const vatDue = roleBalance("VAT_PAYABLE").negated().minus(roleBalance("VAT_RECOVERABLE"));
   const monthProfit = profit(monthRows);
   const yearProfit = profit(yearRows);
 
@@ -68,23 +72,23 @@ export default async function DashboardPage() {
   else if (closable.length > 1) todos.push({ text: simple ? `${closable.length} finished months can be locked (${monthLabel(closable[0].period_start)} to ${monthLabel(closable[closable.length - 1].period_start)})` : `${closable.length} ended periods are still open (${monthLabel(closable[0].period_start)} – ${monthLabel(closable[closable.length - 1].period_start)})`, href: "/periods" });
 
   return <main className="mx-auto w-full max-w-7xl px-5 py-8"><div className="space-y-8">
-    <div>
+    <div className="flex flex-wrap items-end justify-between gap-4"><div>
       <p className="text-sm font-semibold text-accent">{simple ? "YOUR BUSINESS TODAY" : "DASHBOARD"}</p>
       <h1 className="mt-1 text-3xl font-bold">{simple ? "How the business is doing" : "Financial overview"}</h1>
       <p className="mt-2 text-sm text-slate-500">Based on confirmed records up to {new Date(`${today}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}. Drafts are not included.</p>
-    </div>
+    </div><Link className="button" href="/record">＋ Record something</Link></div>
 
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <SummaryCard title={simple ? "Money in the bank" : "Cash and bank"} amount={cash} tone={cash.lt(0) ? "bad" : "neutral"} href="/banking"
-        explain={simple ? "What your records say is in your bank and payment accounts. Run a bank check to make sure it matches your statement." : `Sum of ${CODES.bankPrefix}xx asset account balances.`}
+        explain={simple ? "What your records say is in your bank and payment accounts. Run a bank check to make sure it matches your statement." : "Sum of 10xx bank and clearing account balances."}
         footer={bankRows.length > 1 ? <ul className="space-y-1">{bankRows.map((row) => <li key={row.account_id} className="flex justify-between gap-3"><span>{row.account_name}</span><span className="tabular-nums">{formatMoney(balance(row))}</span></li>)}</ul> : undefined} />
       <SummaryCard title={simple ? "Customers owe you" : "Accounts receivable"} amount={owedToYou}
-        explain={simple ? "Invoices you've sent that haven't been paid yet." : `Balance of account ${CODES.receivables}.`} />
+        explain={simple ? "Invoices you've sent that haven't been paid yet." : `Balance of account ${roleCode("RECEIVABLES")}.`} />
       <SummaryCard title={simple ? "You owe suppliers" : "Accounts payable"} amount={youOwe} href="/bills" tone={summary.overdue_bill_count ? "bad" : "neutral"}
-        explain={simple ? "Bills you've received but not yet paid." : `Balance of account ${CODES.payables}.`}
+        explain={simple ? "Bills you've received but not yet paid." : `Balance of account ${roleCode("PAYABLES")}.`}
         footer={summary.overdue_bill_count ? <span className="font-semibold text-red-700">{summary.overdue_bill_count} overdue</span> : undefined} />
       <SummaryCard title={simple ? (vatDue.lt(0) ? "VAT HMRC owes you" : "VAT to set aside") : "Net VAT position"} amount={vatDue.abs()}
-        explain={simple ? (vatDue.lt(0) ? "You've paid more VAT on costs than you've charged, so you can reclaim the difference." : "VAT you've charged customers minus VAT you've paid on costs. Keep this aside for your VAT return.") : `Account ${CODES.vatPayable} less account ${CODES.vatRecoverable}${vatDue.lt(0) ? " (recoverable)" : " (payable)"}.`} />
+        explain={simple ? (vatDue.lt(0) ? "You've paid more VAT on costs than you've charged, so you can reclaim the difference." : "VAT you've charged customers minus VAT you've paid on costs. Keep this aside for your VAT return.") : `Account ${roleCode("VAT_PAYABLE")} less account ${roleCode("VAT_RECOVERABLE")}${vatDue.lt(0) ? " (recoverable)" : " (payable)"}.`} />
     </div>
 
     <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">

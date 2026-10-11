@@ -21,6 +21,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          system_role: string | null
           tenant_id: string
           type: string
           updated_at: string
@@ -31,6 +32,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          system_role?: string | null
           tenant_id: string
           type: string
           updated_at?: string
@@ -41,6 +43,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          system_role?: string | null
           tenant_id?: string
           type?: string
           updated_at?: string
@@ -983,6 +986,17 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
+      }
+      record_guided_transaction: {
+        Args: {
+          p_actor_id: string
+          p_description: string
+          p_entry_date: string
+          p_lines: Json
+          p_scenario: string
+          p_tenant_id: string
+        }
+        Returns: Json
       }
       reverse_journal_entry_numbered: {
         Args: {

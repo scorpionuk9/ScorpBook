@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAccountingUser } from "@/lib/accounting/auth";
-import { closeAccountingPeriod, completeBankReconciliation, createBankReconciliation, importBankStatementLines, matchBankStatementLine, postJournal, postSupplierBill, recordSupplierBillPayment, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, saveSupplierBill, suggestJournalEntryNumber, unmatchBankStatementLine } from "@/lib/accounting/service";
+import { closeAccountingPeriod, completeBankReconciliation, createBankReconciliation, importBankStatementLines, matchBankStatementLine, postJournal, postSupplierBill, recordGuidedTransaction, recordSupplierBillPayment, reverseJournal, saveAccount, saveDraftJournal, saveSupplier, saveSupplierBill, suggestJournalEntryNumber, unmatchBankStatementLine } from "@/lib/accounting/service";
 
 export type ActionResult = { ok: boolean; message: string; id?: string; entry_number?: string; supplier_code?: string };
 
@@ -180,5 +180,15 @@ export async function reverseJournalAction(formData: FormData): Promise<ActionRe
     }, user.id);
     revalidatePath("/journal");
     return { ok: true, message: `Reversal entry ${reversed.entry_number} created and posted.`, id: reversed.id, entry_number: reversed.entry_number };
+  } catch (error) { return { ok: false, message: errorMessage(error) }; }
+}
+
+export async function recordGuidedTransactionAction(input: unknown): Promise<ActionResult> {
+  const user = await requireAccountingUser();
+  try {
+    const recorded = await recordGuidedTransaction(input, user.id);
+    revalidatePath("/journal");
+    revalidatePath("/dashboard");
+    return { ok: true, message: `Recorded as ${recorded.entry_number}.`, id: recorded.id, entry_number: recorded.entry_number };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }

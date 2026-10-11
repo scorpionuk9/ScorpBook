@@ -1,6 +1,7 @@
 import { z } from "zod";
 import Decimal from "decimal.js";
 import { ACCOUNT_TYPES, ENTRY_SOURCES } from "@/lib/accounting/constants";
+import { GUIDED_SCENARIOS } from "@/lib/accounting/guided";
 
 const amount = z.string().trim().regex(/^\d{1,11}(?:\.\d{1,4})?$/, "Enter a non-negative amount with up to 4 decimal places.").refine(
   (value) => new Decimal(value).lte("99999999999.9999"),
@@ -109,3 +110,15 @@ export const bankStatementRowsSchema = z.array(z.object({
 export const bankMatchSchema = z.object({ statement_line_id: z.string().uuid(), journal_line_id: z.string().uuid() });
 export const bankStatementLineIdSchema = z.object({ statement_line_id: z.string().uuid() });
 export const completeBankReconciliationSchema = z.object({ reconciliation_id: z.string().uuid() });
+
+export const guidedTransactionSchema = z.object({
+  scenario: z.enum(GUIDED_SCENARIOS),
+  entry_date: z.iso.date(),
+  description: z.string().trim().min(1, "Add a short description.").max(2000),
+  amount: z.string().max(30),
+  vat_amount: z.string().max(30),
+  account_id: z.string().max(100),
+  money_account_id: z.string().max(100),
+  to_account_id: z.string().max(100),
+  owner_choice: z.string().max(20),
+});

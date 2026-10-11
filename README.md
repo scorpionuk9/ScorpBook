@@ -18,6 +18,8 @@ The service-role key is used only in server modules. Each page and server action
 
 ## Implemented workflows
 
+- Land on a dashboard after sign-in showing money in the bank, receivables, payables, net VAT, profit this month/year, and outstanding tasks. A Simple/Accountant toggle (per-browser cookie) switches between plain-language labels and standard accounting terms.
+- Record common events through guided "What happened?" forms at `/record` (money in, costs, equipment, owner money in/out, transfers, HMRC payments). The server rebuilds the balanced lines from the answers and `record_guided_transaction` saves and posts them atomically. Accounts that features depend on are found by `system_role`, never by code.
 - Browse and maintain the chart of accounts. New accounts can be added; existing accounts can be renamed or activated/deactivated. Accounts are never deleted, and their code/type are immutable through the app.
 - Maintain a tenant-isolated supplier directory with atomically generated immutable `SUP-000001` codes, contact/tax details, optional default expense accounts, deactivation, and append-only audit events. Supplier master records do not post accounting transactions.
 - Record supplier bills with expense and VAT lines, save editable drafts, post bills atomically to Accounts Payable, and record full or partial payments against bank/clearing accounts. Posted bill details and payment events are immutable and auditable.
