@@ -472,3 +472,41 @@ export async function reverseJournal(input: unknown, actorId: string): Promise<N
   throwOnError(error, "Failed to reverse journal entry");
   return numberedJournalEntrySchema.parse(data);
 }
+
+export type DashboardSummary = {
+  balances: TrialBalanceRow[];
+  draft_journal_count: number;
+  draft_bill_count: number;
+  overdue_bill_count: number;
+  open_reconciliation_count: number;
+  closable_periods: AccountingPeriod[];
+};
+
+export async function getDashboardSummary(today: string): Promise<DashboardSummary> {
+  const date = z.iso.date().parse(today);
+  const client = createAdminClient();
+  const count = { count: "exact", head: true } as const;
+  const [balances, drafts, draftBills, overdueBills, openReconciliations, periods] = await Promise.all([
+    getTrialBalance(date),
+    client.from("accounting_journal_entries").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "DRAFT"),
+    client.from("accounting_supplier_bills").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "DRAFT"),
+    client.from("accounting_supplier_bills").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID)
+      .in("status", ["OPEN", "PARTIAL"]).lt("due_date", date),
+    client.from("accounting_bank_reconciliations").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "IN_PROGRESS"),
+    client.from("accounting_periods").select("*").eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "OPEN")
+      .lt("period_end", date).order("period_start"),
+  ]);
+  throwOnError(drafts.error, "Failed to count draft journal entries");
+  throwOnError(draftBills.error, "Failed to count draft bills");
+  throwOnError(overdueBills.error, "Failed to count overdue bills");
+  throwOnError(openReconciliations.error, "Failed to count open bank reconciliations");
+  throwOnError(periods.error, "Failed to load open accounting periods");
+  return {
+    balances,
+    draft_journal_count: drafts.count ?? 0,
+    draft_bill_count: draftBills.count ?? 0,
+    overdue_bill_count: overdueBills.count ?? 0,
+    open_reconciliation_count: openReconciliations.count ?? 0,
+    closable_periods: periods.data ?? [],
+  };
+}

@@ -28,7 +28,7 @@ export default function LoginPage() {
         password: String(formData.get("password") || ""),
       });
       if (error) throw error;
-      router.replace("/journal");
+      router.replace("/dashboard");
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Sign in failed. Please check your details and try again.");

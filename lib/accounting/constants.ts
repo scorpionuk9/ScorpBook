@@ -15,3 +15,12 @@ export const ENTRY_STATUS_LABELS: Record<string, string> = {
   POSTED: "Posted",
   VOIDED: "Voided",
 };
+
+// Starter chart-of-accounts codes the dashboard summarises. Account codes are immutable once created.
+export const DASHBOARD_ACCOUNT_CODES = {
+  bankPrefix: "10",
+  receivables: "1100",
+  vatRecoverable: "1200",
+  payables: "2000",
+  vatPayable: "2100",
+} as const;

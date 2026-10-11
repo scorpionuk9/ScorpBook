@@ -4,8 +4,8 @@ import { createSessionClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const requestedNext = url.searchParams.get("next") ?? "/journal";
-  let next = "/journal";
+  const requestedNext = url.searchParams.get("next") ?? "/dashboard";
+  let next = "/dashboard";
   try {
     const candidate = new URL(requestedNext, url.origin);
     if (candidate.origin === url.origin) next = `${candidate.pathname}${candidate.search}${candidate.hash}`;
