@@ -39,6 +39,7 @@ export function Navigation({ mode }: { mode: ViewMode }) {
     { href: "/accounts", label: t.accounts },
     { href: "/suppliers", label: t.suppliers },
     { href: "/periods", label: t.periods },
+    { href: "/integrations/scorpinvoice", label: "ScorpInvoice sync" },
   ];
   return <header className="border-b border-slate-200 bg-white">
     <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">

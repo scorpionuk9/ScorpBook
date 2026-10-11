@@ -828,28 +828,39 @@ export type Database = {
       }
       webhook_events: {
         Row: {
+          error: string | null
+          attempts: number
           event_id: string
           id: string
           payload: Json
           processed_at: string
           source_system: string
+          status: string
           tenant_id: string
+          updated_at: string
         }
         Insert: {
+          attempts?: number
           event_id: string
           id?: string
           payload: Json
           processed_at?: string
+          status?: string
           source_system: string
           tenant_id: string
+          updated_at?: string
         }
         Update: {
+          error?: string | null
+          attempts?: number
           event_id?: string
           id?: string
           payload?: Json
           processed_at?: string
+          status?: string
           source_system?: string
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -996,6 +1007,10 @@ export type Database = {
           p_scenario: string
           p_tenant_id: string
         }
+        Returns: Json
+      }
+      receive_scorpinvoice_event: {
+        Args: { p_event_id: string; p_snapshot: Json; p_tenant_id: string }
         Returns: Json
       }
       reverse_journal_entry_numbered: {

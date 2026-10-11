@@ -63,6 +63,7 @@ export default async function DashboardPage() {
   const yearProfit = profit(yearRows);
 
   const todos: Array<{ text: string; href: string }> = [];
+  if (summary.sync_attention_count) todos.push({ text: `${summary.sync_attention_count} ScorpInvoice update${summary.sync_attention_count === 1 ? "" : "s"} couldn't be recorded`, href: "/integrations/scorpinvoice" });
   if (summary.overdue_bill_count) todos.push({ text: `${summary.overdue_bill_count} bill${summary.overdue_bill_count === 1 ? " is" : "s are"} past the due date`, href: "/bills" });
   if (summary.draft_bill_count) todos.push({ text: `${summary.draft_bill_count} draft bill${summary.draft_bill_count === 1 ? "" : "s"} not yet confirmed`, href: "/bills" });
   if (summary.draft_journal_count) todos.push({ text: simple ? `${summary.draft_journal_count} unfinished transaction${summary.draft_journal_count === 1 ? "" : "s"} saved as draft` : `${summary.draft_journal_count} draft journal entr${summary.draft_journal_count === 1 ? "y" : "ies"} awaiting posting`, href: "/journal" });
@@ -83,7 +84,7 @@ export default async function DashboardPage() {
         explain={simple ? "What your records say is in your bank and payment accounts. Run a bank check to make sure it matches your statement." : "Sum of 10xx bank and clearing account balances."}
         footer={bankRows.length > 1 ? <ul className="space-y-1">{bankRows.map((row) => <li key={row.account_id} className="flex justify-between gap-3"><span>{row.account_name}</span><span className="tabular-nums">{formatMoney(balance(row))}</span></li>)}</ul> : undefined} />
       <SummaryCard title={simple ? "Customers owe you" : "Accounts receivable"} amount={owedToYou}
-        explain={simple ? "Invoices you've sent that haven't been paid yet." : `Balance of account ${roleCode("RECEIVABLES")}.`} />
+        explain={simple ? "Invoices you've sent that haven't been paid yet. Fills in automatically from ScorpInvoice." : `Balance of account ${roleCode("RECEIVABLES")}.`} />
       <SummaryCard title={simple ? "You owe suppliers" : "Accounts payable"} amount={youOwe} href="/bills" tone={summary.overdue_bill_count ? "bad" : "neutral"}
         explain={simple ? "Bills you've received but not yet paid." : `Balance of account ${roleCode("PAYABLES")}.`}
         footer={summary.overdue_bill_count ? <span className="font-semibold text-red-700">{summary.overdue_bill_count} overdue</span> : undefined} />

@@ -1,6 +1,6 @@
 # ScorpBook
 
-ScorpBook is the single-company accounting app for Scorpia Tech Ltd. Its journal actions use the database's atomic draft, post and reversal RPCs; posted entries remain immutable. ScorpInvoice webhook integration is intentionally out of scope for this core workflow.
+ScorpBook is the single-company accounting app for Scorpia Tech Ltd. Its journal actions use the database's atomic draft, post and reversal RPCs; posted entries remain immutable. Invoices, payments and expenses from ScorpInvoice post automatically through a signed webhook (see below).
 
 ## Run locally
 
@@ -9,6 +9,7 @@ ScorpBook is the single-company accounting app for Scorpia Tech Ltd. Its journal
    - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from the Supabase project API settings.
    - `SUPABASE_SERVICE_ROLE_KEY` from the project API settings. Keep this secret server-side; never use a `NEXT_PUBLIC_` name for it.
    - `SCORPBOOK_ALLOWED_USER_IDS` to the UUID(s) of authorized users from Supabase Auth. Multiple UUIDs can be comma-separated.
+   - `SCORPINVOICE_WEBHOOK_SECRET` to a long random value shared with ScorpInvoice's `SCORPBOOK_WEBHOOK_SECRET` (optional; sync is off without it).
 3. Create the operator account in Supabase Auth (email/password sign-in must be enabled), then add its user UUID to the allowlist above.
 4. Add the local and deployed callback URLs (`http://localhost:3000/auth/callback` and your deployed `/auth/callback`) to Supabase Auth's allowed redirect URLs for email confirmation.
 5. Ensure the ledger migrations in `supabase/migrations` have been applied to the Supabase project.
@@ -33,3 +34,19 @@ The service-role key is used only in server modules. Each page and server action
 - Run a date-based trial balance from posted entries with exact decimal totals and a debit/credit balance check; inactive accounts remain visible for historical reporting.
 - Run a period-based income statement using posted revenue and expense entries, with exact decimal net income or loss calculations.
 - Run an as-of-date balance sheet with cumulative unclosed earnings included in equity and an assets-equal-liabilities-plus-equity check.
+
+## ScorpInvoice sync
+
+ScorpInvoice database triggers queue a snapshot of each changed invoice or expense (connected users only) in its `scorpbook_outbox`; its Worker cron posts them every 5 minutes to `POST /api/integrations/scorpinvoice`, signed with `x-scorpbook-signature: t=<unix>,v1=<hex HMAC-SHA256 of "t.body">` (5-minute tolerance).
+
+`receive_scorpinvoice_event` compares the postings a snapshot implies with those already made (`scorpinvoice_postings`) and reverses/posts only the difference, in one transaction:
+
+| ScorpInvoice state | Entry |
+|---|---|
+| Invoice sent/overdue | Dr Accounts Receivable / Cr Sales (GBP amount) |
+| Invoice paid | Dr Stripe or GoCardless clearing (bank for manual payments) / Cr Accounts Receivable |
+| Bad debt | Dr Bad Debts / Cr Accounts Receivable |
+| Void, or amount changed | Reverse the earlier entries, then post the new state |
+| Expense added/edited/deleted | Dr mapped cost account / Cr the configured paid-from account (company bank by default) |
+
+Duplicates are ignored by event ID and older snapshots by `snapshot_at`. Entries dated in a locked month post on today's date with a note. Failures roll back, are kept as `NEEDS_ATTENTION`, appear on the dashboard and can be retried from **Setup → ScorpInvoice sync**. Not yet handled: card/Pay by Bank processing fees, payouts from clearing to bank (record them as a transfer or via bank reconciliation), VAT on invoices, and exchange gains/losses on non-GBP invoices.

@@ -480,6 +480,7 @@ export type DashboardSummary = {
   draft_bill_count: number;
   overdue_bill_count: number;
   open_reconciliation_count: number;
+  sync_attention_count: number;
   closable_periods: AccountingPeriod[];
 };
 
@@ -487,7 +488,7 @@ export async function getDashboardSummary(today: string): Promise<DashboardSumma
   const date = z.iso.date().parse(today);
   const client = createAdminClient();
   const count = { count: "exact", head: true } as const;
-  const [balances, drafts, draftBills, overdueBills, openReconciliations, periods] = await Promise.all([
+  const [balances, drafts, draftBills, overdueBills, openReconciliations, periods, syncAttention] = await Promise.all([
     getTrialBalance(date),
     client.from("accounting_journal_entries").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "DRAFT"),
     client.from("accounting_supplier_bills").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "DRAFT"),
@@ -496,18 +497,22 @@ export async function getDashboardSummary(today: string): Promise<DashboardSumma
     client.from("accounting_bank_reconciliations").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "IN_PROGRESS"),
     client.from("accounting_periods").select("*").eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "OPEN")
       .lt("period_end", date).order("period_start"),
+    client.from("webhook_events").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID)
+      .eq("source_system", "SCORPINVOICE").eq("status", "NEEDS_ATTENTION"),
   ]);
   throwOnError(drafts.error, "Failed to count draft journal entries");
   throwOnError(draftBills.error, "Failed to count draft bills");
   throwOnError(overdueBills.error, "Failed to count overdue bills");
   throwOnError(openReconciliations.error, "Failed to count open bank reconciliations");
   throwOnError(periods.error, "Failed to load open accounting periods");
+  throwOnError(syncAttention.error, "Failed to count ScorpInvoice updates needing attention");
   return {
     balances,
     draft_journal_count: drafts.count ?? 0,
     draft_bill_count: draftBills.count ?? 0,
     overdue_bill_count: overdueBills.count ?? 0,
     open_reconciliation_count: openReconciliations.count ?? 0,
+    sync_attention_count: syncAttention.count ?? 0,
     closable_periods: periods.data ?? [],
   };
 }
