@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/app/actions/accounting";
 
-// Submits a form to a server action, then navigates on success.
-export function SubmitAndGo({ action, fields, label, pendingLabel, to, children }: {
-  action: (formData: FormData) => Promise<ActionResult>; fields: Record<string, string>; label: string; pendingLabel: string; to: string; children?: React.ReactNode;
+// Submits a form to a server action, then navigates on success: in-app paths via
+// the router, other origins or app schemes with a full navigation.
+export function SubmitAndGo({ action, fields, label, pendingLabel, to, successNote, children }: {
+  action: (formData: FormData) => Promise<ActionResult>; fields: Record<string, string>; label: string; pendingLabel: string; to: string; successNote?: string; children?: React.ReactNode;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -15,8 +16,9 @@ export function SubmitAndGo({ action, fields, label, pendingLabel, to, children 
     setBusy(true); setMessage(null);
     const result = await action(formData);
     setBusy(false);
-    setMessage({ ok: result.ok, text: result.message });
-    if (result.ok) { router.push(to); router.refresh(); }
+    setMessage({ ok: result.ok, text: result.ok && successNote ? `${result.message} ${successNote}` : result.message });
+    if (!result.ok) return;
+    if (to.startsWith("/")) { router.push(to); router.refresh(); } else window.location.assign(to);
   }
   return <form action={submit} className="space-y-4">
     {Object.entries(fields).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}

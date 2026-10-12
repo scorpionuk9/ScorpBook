@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getOptionalAccountingContext } from "@/lib/accounting/auth";
-import { readConnectToken } from "@/lib/integrations/scorpinvoice";
+import { readConnectToken, scorpInvoiceReturnUrl } from "@/lib/integrations/scorpinvoice";
 import { linkScorpInvoiceAction } from "@/app/actions/integrations";
 import { SubmitAndGo } from "@/components/company/accept-button";
 
@@ -25,7 +25,7 @@ export default async function ConnectScorpInvoicePage({ searchParams }: { search
       <Link className="button" href={`/onboarding?name=${encodeURIComponent(request.business_name)}&next=${encodeURIComponent(here)}`}>Set up my books</Link>
     </>;
   } else {
-    body = <SubmitAndGo action={linkScorpInvoiceAction} fields={{ token }} label="Connect" pendingLabel="Connecting…" to="/integrations/scorpinvoice">
+    body = <SubmitAndGo action={linkScorpInvoiceAction} fields={{ token }} label="Connect" pendingLabel="Connecting…" to={scorpInvoiceReturnUrl(request.return_to)} successNote={request.return_to === "app" ? "Taking you back to the ScorpInvoice app…" : "Taking you back to ScorpInvoice…"}>
       <label className="block text-sm font-semibold text-slate-700">Send ScorpInvoice records to
         <select name="company_id" className="field mt-1.5" defaultValue={context.company?.role === "OWNER" ? context.company.id : owned[0].id}>
           {owned.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}

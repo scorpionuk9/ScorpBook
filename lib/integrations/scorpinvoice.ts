@@ -51,8 +51,9 @@ function signatureHeader(body: string): string {
 
 // Hand-off token ScorpInvoice puts in the "Connect to ScorpBook" link:
 // base64url(JSON) + "." + hex HMAC-SHA256 of "connect.<payload>", valid for 30 minutes.
-export type ConnectRequest = { user_id: string; email: string; business_name: string };
-const connectPayloadSchema = z.object({ u: z.string().uuid(), e: z.string().email(), n: z.string().max(200), exp: z.number().int() });
+// "r" says where the user started (web settings or the mobile app), so we can send them back.
+export type ConnectRequest = { user_id: string; email: string; business_name: string; return_to: "web" | "app" };
+const connectPayloadSchema = z.object({ u: z.string().uuid(), e: z.string().email(), n: z.string().max(200), exp: z.number().int(), r: z.enum(["web", "app"]).default("web") });
 
 export function readConnectToken(token: string): ConnectRequest | null {
   const [payload, signature] = token.split(".");
@@ -61,13 +62,19 @@ export function readConnectToken(token: string): ConnectRequest | null {
   try {
     const data = connectPayloadSchema.parse(JSON.parse(Buffer.from(payload, "base64url").toString("utf8")));
     if (data.exp * 1000 < Date.now()) return null;
-    return { user_id: data.u, email: data.e, business_name: data.n };
+    return { user_id: data.u, email: data.e, business_name: data.n, return_to: data.r };
   } catch {
     return null;
   }
 }
 
 // Tells ScorpInvoice to start (or stop) sending a user's records to a company.
+// Where to send the user once connected. Fixed per origin (never taken from the
+// request), so the signed token can't be turned into an open redirect.
+export function scorpInvoiceReturnUrl(returnTo: ConnectRequest["return_to"]): string {
+  return returnTo === "app" ? "scorpinvoicemobile://settings?scorpbookConnected=1" : `${SCORPINVOICE_URL}/settings?scorpbookConnected=1`;
+}
+
 export async function setScorpInvoiceConnection(input: { user_id: string; tenant_id: string; enabled: boolean; backfill: boolean }): Promise<{ queued: number }> {
   const body = JSON.stringify(input);
   const response = await fetch(`${SCORPINVOICE_URL}/api/scorpbook/connect`, {
