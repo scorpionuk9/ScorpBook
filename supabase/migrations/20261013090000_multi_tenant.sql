@@ -13,8 +13,9 @@ ALTER TABLE public.accounting_tenants
 -- Company names are not globally unique once anyone can sign up.
 ALTER TABLE public.accounting_tenants DROP CONSTRAINT IF EXISTS accounting_tenants_name_key;
 
--- Scorpia Tech Ltd charges VAT (it has VAT accounts in use) and has a 31 Dec year end.
-UPDATE public.accounting_tenants SET vat_registered = TRUE WHERE id = '00000000-0000-4000-8000-000000000001';
+-- Scorpia Tech Ltd keeps the defaults: not VAT registered, 31 Dec year end. (This
+-- migration originally set vat_registered = TRUE by mistake; corrected in production
+-- on 2026-10-12.)
 
 CREATE TABLE public.accounting_memberships (
     tenant_id UUID NOT NULL REFERENCES public.accounting_tenants (id) ON DELETE CASCADE,
