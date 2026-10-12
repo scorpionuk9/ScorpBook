@@ -8,6 +8,26 @@ export type BankFeedLine = { id: string; bank_account_id: string; transaction_da
 export type BankRule = { id: string; match_text: string; direction: "IN" | "OUT"; scenario: string; account_id: string | null; owner_choice: string | null };
 export type BankChoice = { scenario: GuidedScenario; account_id: string; owner_choice: string; vat_amount: string };
 
+export type BusinessType = "LIMITED_COMPANY" | "SOLE_TRADER";
+
+// How an owner's own money in/out can be recorded; sole traders have one option each.
+export function ownerOptions(scenario: GuidedScenario, businessType: BusinessType): Array<{ value: string; label: string; hint: string }> {
+  if (businessType === "SOLE_TRADER") {
+    if (scenario === "owner_in") return [{ value: "capital", label: "Money I put into the business", hint: "Your own savings paid in." }];
+    if (scenario === "owner_out") return [{ value: "drawings", label: "Money I took for myself", hint: "Drawings: not a business cost." }];
+    return [];
+  }
+  if (scenario === "owner_in") return [
+    { value: "loan", label: "A loan to the business", hint: "You can take it back later, tax-free. Most common." },
+    { value: "shares", label: "Payment for shares", hint: "Usually only when the company is set up." },
+  ];
+  if (scenario === "owner_out") return [
+    { value: "loan", label: "Taking back money I lent", hint: "Repaying money you put in or paid personally." },
+    { value: "dividend", label: "A dividend", hint: "A share of the company's after-tax profits." },
+  ];
+  return [];
+}
+
 export const IN_SCENARIOS: GuidedScenario[] = ["money_in", "owner_in", "transfer"];
 export const OUT_SCENARIOS: GuidedScenario[] = ["money_out", "equipment", "owner_out", "transfer", "pay_hmrc"];
 

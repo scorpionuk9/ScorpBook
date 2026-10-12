@@ -1,9 +1,9 @@
 import Link from "next/link";
 import Decimal from "decimal.js";
-import { requireAccountingUser } from "@/lib/accounting/auth";
+import { getAccountingContext } from "@/lib/accounting/auth";
 import { getDashboardSummary, getIncomeStatement, listAccounts, type IncomeStatementRow, type TrialBalanceRow } from "@/lib/accounting/service";
 import { isMoneyAccount } from "@/lib/accounting/guided";
-import { accountingToday } from "@/lib/accounting/dates";
+import { accountingToday, financialYearStart } from "@/lib/accounting/dates";
 import { getViewMode } from "@/lib/ui/view-mode-server";
 import { formatMoney } from "@/lib/ui/format";
 
@@ -36,12 +36,12 @@ function SummaryCard({ title, amount, explain, tone = "neutral", href, footer }:
 }
 
 export default async function DashboardPage() {
-  await requireAccountingUser();
+  const { company } = await getAccountingContext();
   const mode = await getViewMode();
   const simple = mode === "simple";
   const today = accountingToday();
   const monthStart = `${today.slice(0, 7)}-01`;
-  const yearStart = `${today.slice(0, 4)}-01-01`;
+  const yearStart = financialYearStart(today, company.year_end_month, company.year_end_day);
   const [summary, monthRows, yearRows, accounts] = await Promise.all([
     getDashboardSummary(today),
     getIncomeStatement(monthStart, today),
@@ -80,7 +80,7 @@ export default async function DashboardPage() {
       <p className="mt-2 text-sm text-slate-500">Based on confirmed records up to {new Date(`${today}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}. Drafts are not included.</p>
     </div><Link className="button" href="/record">＋ Record something</Link></div>
 
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className={`grid gap-4 sm:grid-cols-2 ${company.vat_registered ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
       <SummaryCard title={simple ? "Money in the bank" : "Cash and bank"} amount={cash} tone={cash.lt(0) ? "bad" : "neutral"} href="/banking/inbox"
         explain={simple ? "What your records say is in your bank and payment accounts. Run a bank check to make sure it matches your statement." : "Sum of 10xx bank and clearing account balances."}
         footer={bankRows.length > 1 ? <ul className="space-y-1">{bankRows.map((row) => <li key={row.account_id} className="flex justify-between gap-3"><span>{row.account_name}</span><span className="tabular-nums">{formatMoney(balance(row))}</span></li>)}</ul> : undefined} />
@@ -89,8 +89,8 @@ export default async function DashboardPage() {
       <SummaryCard title={simple ? "You owe suppliers" : "Accounts payable"} amount={youOwe} href="/bills" tone={summary.overdue_bill_count ? "bad" : "neutral"}
         explain={simple ? "Bills you've received but not yet paid." : `Balance of account ${roleCode("PAYABLES")}.`}
         footer={summary.overdue_bill_count ? <span className="font-semibold text-red-700">{summary.overdue_bill_count} overdue</span> : undefined} />
-      <SummaryCard title={simple ? (vatDue.lt(0) ? "VAT HMRC owes you" : "VAT to set aside") : "Net VAT position"} amount={vatDue.abs()}
-        explain={simple ? (vatDue.lt(0) ? "You've paid more VAT on costs than you've charged, so you can reclaim the difference." : "VAT you've charged customers minus VAT you've paid on costs. Keep this aside for your VAT return.") : `Account ${roleCode("VAT_PAYABLE")} less account ${roleCode("VAT_RECOVERABLE")}${vatDue.lt(0) ? " (recoverable)" : " (payable)"}.`} />
+      {company.vat_registered && <SummaryCard title={simple ? (vatDue.lt(0) ? "VAT HMRC owes you" : "VAT to set aside") : "Net VAT position"} amount={vatDue.abs()}
+        explain={simple ? (vatDue.lt(0) ? "You've paid more VAT on costs than you've charged, so you can reclaim the difference." : "VAT you've charged customers minus VAT you've paid on costs. Keep this aside for your VAT return.") : `Account ${roleCode("VAT_PAYABLE")} less account ${roleCode("VAT_RECOVERABLE")}${vatDue.lt(0) ? " (recoverable)" : " (payable)"}.`} />}
     </div>
 
     <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
         <h2 className="font-semibold">{simple ? "Profit" : "Net income"}</h2>
         <p className="mt-1 text-xs text-slate-500">{simple ? "Money earned minus costs. A negative number means a loss." : "Revenue less expenses from posted entries."}</p>
         <dl className="mt-4 grid grid-cols-2 gap-4">
-          {[{ label: "This month", value: monthProfit, from: monthStart }, { label: `This year (${today.slice(0, 4)})`, value: yearProfit, from: yearStart }].map((item) =>
+          {[{ label: "This month", value: monthProfit, from: monthStart }, { label: `This financial year (from ${new Date(`${yearStart}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })})`, value: yearProfit, from: yearStart }].map((item) =>
             <Link key={item.label} href={`/reports/income-statement?from=${item.from}&to=${today}`} className="rounded-lg bg-slate-50 p-4 transition hover:bg-emerald-50">
               <dt className="text-xs font-semibold text-slate-600">{item.label}</dt>
               <dd className={`mt-1 text-2xl font-bold tabular-nums ${item.value.lt(0) ? "text-red-700" : "text-emerald-700"}`}>{formatMoney(item.value)}</dd>

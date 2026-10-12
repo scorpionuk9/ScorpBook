@@ -32,7 +32,7 @@ export type GuidedInput = {
   money_account_id: string;
   // Destination account for transfers.
   to_account_id: string;
-  // owner_in: "loan" | "shares"; owner_out: "loan" | "dividend".
+  // owner_in: "loan" | "shares" | "capital"; owner_out: "loan" | "dividend" | "drawings".
   owner_choice: string;
 };
 
@@ -89,11 +89,13 @@ export function buildGuidedTransaction(input: GuidedInput, accounts: GuidedAccou
   const money = (id: string) => { const account = byId.get(id); return account && isMoneyAccount(account) ? account : undefined; };
   const category = () => { const account = byId.get(input.account_id); return account && categoryOptions(input.scenario, accounts).some((option) => option.id === account.id) ? account : undefined; };
   const directorsLoan = role("DIRECTORS_LOAN");
+  // Sole traders have no director's loan: money the owner pays in is capital.
+  const ownerAccount = directorsLoan ?? role("OWNER_CAPITAL");
 
   // Resolves where money came from or went to: a bank/payment account, or the owner personally.
   const source = (): { account: GuidedAccount; personal: boolean } | string => {
     if (input.money_account_id === PERSONAL_PAYMENT) {
-      return directorsLoan ? { account: directorsLoan, personal: true } : "A Director's Loan Account is needed to record personal payments. Ask your accountant to set one up.";
+      return ownerAccount ? { account: ownerAccount, personal: true } : "An owner's capital or Director's Loan account is needed to record personal payments.";
     }
     const account = money(input.money_account_id);
     return account ? { account, personal: false } : "Choose which account the money moved through.";
@@ -125,7 +127,7 @@ export function buildGuidedTransaction(input: GuidedInput, accounts: GuidedAccou
       if (vat.gt(0) && !vatAccount) return fail("A VAT Recoverable account is needed to record VAT.");
       const lines = [debit(target.id, net), ...(vat.gt(0) ? [debit(vatAccount!.id, vat)] : []), credit(from.account.id, total)];
       return { ok: true, lines, summary: [
-        from.personal ? `You paid ${formatMoney(total)} personally, so the business now owes you that amount (recorded on your Director's Loan Account).` : `${from.account.name} goes down by ${formatMoney(total)}.`,
+        from.personal ? (directorsLoan ? `You paid ${formatMoney(total)} personally, so the business now owes you that amount (recorded on your Director's Loan Account).` : `You paid ${formatMoney(total)} personally, so it counts as money you've put into the business.`) : `${from.account.name} goes down by ${formatMoney(total)}.`,
         input.scenario === "money_out"
           ? `${formatMoney(net)} is recorded as a cost under “${target.name}”, which reduces your profit.`
           : `${formatMoney(net)} is recorded as equipment the business owns (“${target.name}”). It doesn't reduce profit straight away; its cost is spread over the years you use it.`,
@@ -136,24 +138,28 @@ export function buildGuidedTransaction(input: GuidedInput, accounts: GuidedAccou
       if (vat.gt(0)) return fail("VAT doesn't apply to money you put into your own business.");
       const into = money(input.money_account_id);
       if (!into) return fail("Choose which account the money arrived in.");
-      const target = input.owner_choice === "shares" ? role("SHARE_CAPITAL") : input.owner_choice === "loan" ? directorsLoan : undefined;
+      const target = input.owner_choice === "shares" ? role("SHARE_CAPITAL") : input.owner_choice === "loan" ? directorsLoan : input.owner_choice === "capital" ? role("OWNER_CAPITAL") : undefined;
       if (!target) return fail(input.owner_choice ? "The account needed for this isn't set up yet. Ask your accountant." : "Choose whether this is a loan or a payment for shares.");
       return { ok: true, lines: [debit(into.id, total), credit(target.id, total)], summary: [
         `${into.name} goes up by ${formatMoney(total)}.`,
         input.owner_choice === "loan"
           ? `The business owes you ${formatMoney(total)}, which you can take back later without paying tax on it.`
-          : `${formatMoney(total)} is recorded as money paid for shares in the company. It stays in the business and isn't normally paid back.`,
+          : input.owner_choice === "capital"
+            ? `${formatMoney(total)} is recorded as money you've put into the business. It isn't income, so it doesn't affect your profit or tax.`
+            : `${formatMoney(total)} is recorded as money paid for shares in the company. It stays in the business and isn't normally paid back.`,
       ] };
     }
     case "owner_out": {
       if (vat.gt(0)) return fail("VAT doesn't apply to money you take out of your own business.");
       const from = money(input.money_account_id);
       if (!from) return fail("Choose which account the money left from.");
-      const target = input.owner_choice === "dividend" ? role("DIVIDENDS") : input.owner_choice === "loan" ? directorsLoan : undefined;
+      const target = input.owner_choice === "dividend" ? role("DIVIDENDS") : input.owner_choice === "loan" ? directorsLoan : input.owner_choice === "drawings" ? role("DRAWINGS") : undefined;
       if (!target) return fail(input.owner_choice ? "The account needed for this isn't set up yet. Ask your accountant." : "Choose whether this is a loan repayment or a dividend.");
       return { ok: true, lines: [debit(target.id, total), credit(from.id, total)], summary: [
         `${from.name} goes down by ${formatMoney(total)}.`,
-        input.owner_choice === "loan"
+        input.owner_choice === "drawings"
+          ? `${formatMoney(total)} is recorded as drawings: money you took for yourself. It isn't a business cost, so it doesn't reduce your profit or tax.`
+          : input.owner_choice === "loan"
           ? `${formatMoney(total)} comes off what the business owes you. If you take out more than you've put in, the business is lending to you, which can have tax consequences. Check with your accountant.`
           : `${formatMoney(total)} is recorded as a dividend. Dividends can only be paid from profits the company has made after tax. Check with your accountant if you're unsure.`,
       ] };

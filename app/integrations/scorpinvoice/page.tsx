@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { requireAccountingUser } from "@/lib/accounting/auth";
-import { listScorpInvoiceEvents } from "@/lib/integrations/scorpinvoice";
+import { currentTenantId, requireAccountingUser } from "@/lib/accounting/auth";
+import { listScorpInvoiceEvents, listScorpInvoiceLinks, scorpInvoiceSyncConfigured } from "@/lib/integrations/scorpinvoice";
+import { unlinkScorpInvoiceAction } from "@/app/actions/integrations";
+import { FormActionButton } from "@/components/banking/form-action-button";
 import { getViewMode } from "@/lib/ui/view-mode-server";
 import { formatMoney } from "@/lib/ui/format";
 import { RetryEventButton } from "@/components/integrations/retry-event-button";
@@ -29,8 +31,9 @@ function describe(payload: unknown): string {
 export default async function ScorpInvoiceSyncPage() {
   await requireAccountingUser();
   const simple = (await getViewMode()) === "simple";
-  const configured = Boolean(process.env.SCORPINVOICE_WEBHOOK_SECRET);
-  const events = await listScorpInvoiceEvents();
+  const configured = scorpInvoiceSyncConfigured();
+  const tenant = await currentTenantId();
+  const [events, links] = await Promise.all([listScorpInvoiceEvents(tenant), listScorpInvoiceLinks(tenant)]);
   const failing = events.filter((event) => event.status === "NEEDS_ATTENTION");
   return <main className="mx-auto w-full max-w-6xl px-5 py-8"><div className="space-y-6">
     <div><Link href="/dashboard" className="text-sm font-medium text-accent">← Home</Link><p className="mt-5 text-sm font-semibold text-accent">CONNECTIONS</p><h1 className="mt-1 text-3xl font-bold">ScorpInvoice sync</h1>
@@ -40,7 +43,7 @@ export default async function ScorpInvoiceSyncPage() {
       <p className="font-semibold">{configured ? "✓ Ready to receive updates from ScorpInvoice" : "Not set up yet"}</p>
       <p className="mt-1 text-slate-500">{configured
         ? "Updates are signed by ScorpInvoice and checked before anything is recorded."
-        : "Set SCORPINVOICE_WEBHOOK_SECRET on this server and the same secret in ScorpInvoice to turn on syncing."}</p>
+        : "ScorpInvoice syncing isn't available on this server yet."}</p>
       {!simple && <dl className="mt-3 grid gap-1 text-xs text-slate-600 sm:grid-cols-[10rem_1fr]">
         <dt className="font-semibold">Webhook path</dt><dd className="font-mono">/api/integrations/scorpinvoice</dd>
         <dt className="font-semibold">Invoice sent</dt><dd>Debit Accounts Receivable, credit Sales</dd>
@@ -48,6 +51,15 @@ export default async function ScorpInvoiceSyncPage() {
         <dt className="font-semibold">Bad debt / void</dt><dd>Write-off to Bad Debts / reversal of the original entries</dd>
         <dt className="font-semibold">Expense</dt><dd>Debit the mapped cost account, credit the company bank account</dd>
       </dl>}
+    </section>
+
+    <section className="card p-5 text-sm">
+      <h2 className="font-semibold">Connected ScorpInvoice accounts</h2>
+      {links.length ? <ul className="mt-3 divide-y divide-slate-100">{links.map((link) => <li key={link.scorpinvoice_user_id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <span>{link.scorpinvoice_email ?? link.scorpinvoice_user_id}<span className="ml-2 text-xs text-slate-400">since {new Date(link.created_at).toLocaleDateString("en-GB", { dateStyle: "medium" })}</span></span>
+        <FormActionButton action={unlinkScorpInvoiceAction} fields={{ scorpinvoice_user_id: link.scorpinvoice_user_id }} label="Disconnect" pendingLabel="Disconnecting…" />
+      </li>)}</ul>
+        : <p className="mt-2 text-slate-500">None yet. In ScorpInvoice, open <strong>Settings → Bookkeeping with ScorpBook</strong> and choose <strong>Connect</strong>.</p>}
     </section>
 
     {failing.length > 0 && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{failing.length} update{failing.length === 1 ? "" : "s"} couldn&apos;t be recorded. Fix the problem described below (for example a missing account), then try again.</p>}

@@ -3,15 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { categoriseBankFeedLineAction, matchBankFeedLineAction, setBankFeedLineIgnoredAction } from "@/app/actions/banking";
-import { BANK_SCENARIO_LABELS, findRule, isMoneyIn, scenariosFor, suggestKeyword, toGuidedInput, type BankChoice, type BankFeedLine, type BankRule } from "@/lib/accounting/bank-inbox";
+import { BANK_SCENARIO_LABELS, ownerOptions, type BusinessType, findRule, isMoneyIn, scenariosFor, suggestKeyword, toGuidedInput, type BankChoice, type BankFeedLine, type BankRule } from "@/lib/accounting/bank-inbox";
 import { buildGuidedTransaction, categoryOptions, isMoneyAccount, type GuidedAccount, type GuidedScenario } from "@/lib/accounting/guided";
 import type { BankMatchCandidate } from "@/lib/accounting/service";
 import { formatMoney } from "@/lib/ui/format";
-
-const OWNER_OPTIONS: Partial<Record<GuidedScenario, Array<{ value: string; label: string }>>> = {
-  owner_in: [{ value: "loan", label: "Loan to the business" }, { value: "shares", label: "Payment for shares" }],
-  owner_out: [{ value: "loan", label: "Taking back money I lent" }, { value: "dividend", label: "Dividend" }],
-};
 
 function choiceFromRule(rule: BankRule | undefined, line: BankFeedLine): BankChoice | null {
   if (!rule || !scenariosFor(line).includes(rule.scenario as GuidedScenario)) return null;
@@ -22,7 +17,7 @@ function defaultChoice(line: BankFeedLine): BankChoice {
   return { scenario: isMoneyIn(line) ? "money_in" : "money_out", account_id: "", owner_choice: "", vat_amount: "" };
 }
 
-function InboxRow({ line, accounts, rules, candidates, simple }: { line: BankFeedLine; accounts: GuidedAccount[]; rules: BankRule[]; candidates: BankMatchCandidate[]; simple: boolean }) {
+function InboxRow({ line, accounts, rules, candidates, simple, businessType, vatRegistered }: { line: BankFeedLine; accounts: GuidedAccount[]; rules: BankRule[]; candidates: BankMatchCandidate[]; simple: boolean; businessType: BusinessType; vatRegistered: boolean }) {
   const router = useRouter();
   const rule = findRule(rules, line);
   const [choice, setChoice] = useState<BankChoice>(choiceFromRule(rule, line) ?? defaultChoice(line));
@@ -34,7 +29,8 @@ function InboxRow({ line, accounts, rules, candidates, simple }: { line: BankFee
   const result = buildGuidedTransaction(toGuidedInput(line, choice), accounts);
   const transferAccounts = accounts.filter((account) => account.is_active && isMoneyAccount(account) && account.id !== line.bank_account_id);
   const options = choice.scenario === "transfer" ? transferAccounts : categoryOptions(choice.scenario, accounts);
-  const allowsVat = ["money_in", "money_out", "equipment"].includes(choice.scenario);
+  const allowsVat = vatRegistered && ["money_in", "money_out", "equipment"].includes(choice.scenario);
+  const owners = ownerOptions(choice.scenario, businessType);
 
   async function run(action: () => Promise<{ ok: boolean; message: string }>) {
     setBusy(true); setError("");
@@ -60,12 +56,12 @@ function InboxRow({ line, accounts, rules, candidates, simple }: { line: BankFee
     </div>}
 
     <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_8rem]">
-      <select aria-label="What is this?" className="field" value={choice.scenario} onChange={(event) => setChoice({ scenario: event.target.value as GuidedScenario, account_id: "", owner_choice: "", vat_amount: "" })}>
+      <select aria-label="What is this?" className="field" value={choice.scenario} onChange={(event) => { const scenario = event.target.value as GuidedScenario; const options = ownerOptions(scenario, businessType); setChoice({ scenario, account_id: "", owner_choice: options.length === 1 ? options[0].value : "", vat_amount: "" }); }}>
         {scenariosFor(line).map((scenario) => <option key={scenario} value={scenario}>{BANK_SCENARIO_LABELS[scenario]}</option>)}
       </select>
-      {OWNER_OPTIONS[choice.scenario]
+      {owners.length
         ? <select aria-label="What kind?" className="field" value={choice.owner_choice} onChange={(event) => setChoice({ ...choice, owner_choice: event.target.value })}>
-            <option value="">Choose…</option>{OWNER_OPTIONS[choice.scenario]!.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            {owners.length > 1 && <option value="">Choose…</option>}{owners.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         : <select aria-label={choice.scenario === "transfer" ? (incoming ? "From which account?" : "To which account?") : "Category"} className="field" value={choice.account_id} onChange={(event) => setChoice({ ...choice, account_id: event.target.value })}>
             <option value="">{choice.scenario === "transfer" ? (incoming ? "From which account?" : "To which account?") : "Choose a category…"}</option>
@@ -93,7 +89,7 @@ function InboxRow({ line, accounts, rules, candidates, simple }: { line: BankFee
   </li>;
 }
 
-export function BankInbox({ lines, accounts, rules, candidates, simple }: { lines: BankFeedLine[]; accounts: GuidedAccount[]; rules: BankRule[]; candidates: Record<string, BankMatchCandidate[]>; simple: boolean }) {
+export function BankInbox({ lines, accounts, rules, candidates, simple, businessType, vatRegistered }: { lines: BankFeedLine[]; accounts: GuidedAccount[]; rules: BankRule[]; candidates: Record<string, BankMatchCandidate[]>; simple: boolean; businessType: BusinessType; vatRegistered: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
@@ -123,6 +119,6 @@ export function BankInbox({ lines, accounts, rules, candidates, simple }: { line
       <p className="text-sm">{ready.length} transaction{ready.length === 1 ? "" : "s"} can be saved using your rules.</p>
       <div className="flex items-center gap-3">{progress && <span className="text-xs text-slate-500">{progress}</span>}<button type="button" className="button" disabled={busy} onClick={() => void confirmAll()}>Save all suggested</button></div>
     </div>}
-    <ul className="divide-y divide-slate-100">{lines.map((line) => <InboxRow key={line.id} line={line} accounts={accounts} rules={rules} candidates={candidates[line.id] ?? []} simple={simple} />)}</ul>
+    <ul className="divide-y divide-slate-100">{lines.map((line) => <InboxRow key={line.id} line={line} accounts={accounts} rules={rules} candidates={candidates[line.id] ?? []} simple={simple} businessType={businessType} vatRegistered={vatRegistered} />)}</ul>
   </section>;
 }

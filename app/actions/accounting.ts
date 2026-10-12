@@ -11,8 +11,8 @@ function errorMessage(error: unknown): string {
 }
 
 export async function saveAccountAction(formData: FormData): Promise<ActionResult> {
-  await requireAccountingUser();
   try {
+    await requireAccountingUser("ACCOUNTANT");
     await saveAccount({
       id: String(formData.get("id") || "") || undefined,
       code: String(formData.get("code") || ""),
@@ -26,8 +26,8 @@ export async function saveAccountAction(formData: FormData): Promise<ActionResul
 }
 
 export async function saveSupplierAction(formData: FormData): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const id = String(formData.get("id") || "") || undefined;
     const supplier_code = await saveSupplier({
       id,
@@ -46,8 +46,8 @@ export async function saveSupplierAction(formData: FormData): Promise<ActionResu
 }
 
 export async function saveSupplierBillAction(input: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const id = await saveSupplierBill(input, user.id);
     revalidatePath("/bills");
     return { ok: true, message: "Supplier bill draft saved.", id };
@@ -55,8 +55,8 @@ export async function saveSupplierBillAction(input: unknown): Promise<ActionResu
 }
 
 export async function postSupplierBillAction(formData: FormData): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const posted = await postSupplierBill(String(formData.get("bill_id") || ""), user.id);
     revalidatePath("/bills");
     revalidatePath("/journal");
@@ -68,8 +68,8 @@ export async function postSupplierBillAction(formData: FormData): Promise<Action
 }
 
 export async function recordSupplierBillPaymentAction(formData: FormData): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const posted = await recordSupplierBillPayment({
       bill_id: String(formData.get("bill_id") || ""),
       payment_date: String(formData.get("payment_date") || ""),
@@ -85,8 +85,8 @@ export async function recordSupplierBillPaymentAction(formData: FormData): Promi
 }
 
 export async function createBankReconciliationAction(input: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const id = await createBankReconciliation(input, user.id);
     revalidatePath("/banking");
     return { ok: true, message: "Bank reconciliation created.", id };
@@ -94,8 +94,8 @@ export async function createBankReconciliationAction(input: unknown): Promise<Ac
 }
 
 export async function importBankStatementAction(reconciliationId: string, rows: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const count = await importBankStatementLines(reconciliationId, rows, user.id);
     revalidatePath(`/banking/${reconciliationId}`);
     return { ok: true, message: `${count} bank statement lines imported.` };
@@ -103,8 +103,8 @@ export async function importBankStatementAction(reconciliationId: string, rows: 
 }
 
 export async function matchBankStatementLineAction(reconciliationId: string, input: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     await matchBankStatementLine(input, user.id);
     revalidatePath(`/banking/${reconciliationId}`);
     return { ok: true, message: "Bank line matched." };
@@ -112,8 +112,8 @@ export async function matchBankStatementLineAction(reconciliationId: string, inp
 }
 
 export async function unmatchBankStatementLineAction(reconciliationId: string, input: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     await unmatchBankStatementLine(input, user.id);
     revalidatePath(`/banking/${reconciliationId}`);
     return { ok: true, message: "Match removed." };
@@ -121,8 +121,8 @@ export async function unmatchBankStatementLineAction(reconciliationId: string, i
 }
 
 export async function completeBankReconciliationAction(reconciliationId: string): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     await completeBankReconciliation({ reconciliation_id: reconciliationId }, user.id);
     revalidatePath("/banking");
     revalidatePath(`/banking/${reconciliationId}`);
@@ -131,8 +131,8 @@ export async function completeBankReconciliationAction(reconciliationId: string)
 }
 
 export async function closeAccountingPeriodAction(periodId: string): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     await closeAccountingPeriod(periodId, user.id);
     revalidatePath("/periods");
     revalidatePath("/journal");
@@ -143,8 +143,8 @@ export async function closeAccountingPeriodAction(periodId: string): Promise<Act
 }
 
 export async function saveDraftAction(input: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const saved = await saveDraftJournal(input, user.id);
     revalidatePath("/journal");
     return { ok: true, message: `Journal draft saved as ${saved.entry_number}.`, id: saved.id, entry_number: saved.entry_number };
@@ -152,16 +152,16 @@ export async function saveDraftAction(input: unknown): Promise<ActionResult> {
 }
 
 export async function suggestEntryNumberAction(entryDate: string): Promise<ActionResult> {
-  await requireAccountingUser();
   try {
+    await requireAccountingUser("ACCOUNTANT");
     const entry_number = await suggestJournalEntryNumber(entryDate);
     return { ok: true, message: "", entry_number };
   } catch (error) { return { ok: false, message: errorMessage(error) }; }
 }
 
 export async function postJournalAction(formData: FormData): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const entry_id = String(formData.get("entry_id") || "");
     await postJournal({ entry_id }, user.id);
     revalidatePath("/journal");
@@ -170,8 +170,8 @@ export async function postJournalAction(formData: FormData): Promise<ActionResul
 }
 
 export async function reverseJournalAction(formData: FormData): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const reversed = await reverseJournal({
       entry_id: String(formData.get("entry_id") || ""),
       reversal_entry_number: String(formData.get("reversal_entry_number") || ""),
@@ -184,8 +184,8 @@ export async function reverseJournalAction(formData: FormData): Promise<ActionRe
 }
 
 export async function recordGuidedTransactionAction(input: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const recorded = await recordGuidedTransaction(input, user.id);
     revalidatePath("/journal");
     revalidatePath("/dashboard");

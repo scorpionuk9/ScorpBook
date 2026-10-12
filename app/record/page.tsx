@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireAccountingUser } from "@/lib/accounting/auth";
+import { getAccountingContext } from "@/lib/accounting/auth";
 import { listAccounts } from "@/lib/accounting/service";
 import { accountingToday } from "@/lib/accounting/dates";
 import { GUIDED_SCENARIOS, type GuidedScenario } from "@/lib/accounting/guided";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 type RecordPageProps = { searchParams: Promise<{ type?: string | string[] }> };
 
 export default async function RecordPage({ searchParams }: RecordPageProps) {
-  await requireAccountingUser();
+  const { company } = await getAccountingContext();
   const [accounts, mode, params] = await Promise.all([listAccounts(), getViewMode(), searchParams]);
   const requested = Array.isArray(params.type) ? params.type[0] : params.type;
   const initialScenario = GUIDED_SCENARIOS.find((scenario) => scenario === requested) as GuidedScenario | undefined;
@@ -21,6 +21,6 @@ export default async function RecordPage({ searchParams }: RecordPageProps) {
         <p className="mt-2 text-sm text-slate-500">Pick what happened and answer a few questions. ScorpBook does the bookkeeping for you.</p></div>
       <Link href="/journal/new" className="text-sm font-medium text-slate-500 hover:text-accent">Something else? Enter it manually →</Link>
     </div>
-    <GuidedEntry accounts={accounts} today={accountingToday()} initialScenario={initialScenario} showLines={mode === "accountant"} />
+    <GuidedEntry accounts={accounts} today={accountingToday()} initialScenario={initialScenario} showLines={mode === "accountant"} businessType={company.business_type} vatRegistered={company.vat_registered} />
   </div></main>;
 }

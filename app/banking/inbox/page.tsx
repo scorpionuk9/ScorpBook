@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireAccountingUser } from "@/lib/accounting/auth";
+import { getAccountingContext } from "@/lib/accounting/auth";
 import { listAccounts, listBankFeedLines, listBankMatchCandidates, listBankRules } from "@/lib/accounting/service";
 import { BANK_SCENARIO_LABELS } from "@/lib/accounting/bank-inbox";
 import { isMoneyAccount, type GuidedScenario } from "@/lib/accounting/guided";
@@ -17,7 +17,7 @@ const TABS = [{ key: "todo", label: "To do", status: "NEW" }, { key: "done", lab
 type InboxPageProps = { searchParams: Promise<{ view?: string | string[] }> };
 
 export default async function BankInboxPage({ searchParams }: InboxPageProps) {
-  await requireAccountingUser();
+  const { company } = await getAccountingContext();
   const params = await searchParams;
   const tab = TABS.find((item) => item.key === (Array.isArray(params.view) ? params.view[0] : params.view)) ?? TABS[0];
   const [accounts, lines, rules, mode] = await Promise.all([listAccounts(), listBankFeedLines(tab.status), listBankRules(), getViewMode()]);
@@ -42,7 +42,7 @@ export default async function BankInboxPage({ searchParams }: InboxPageProps) {
     </nav>
 
     {tab.status === "NEW"
-      ? <BankInbox lines={lines} accounts={accounts} rules={rules} candidates={candidates} simple={simple} />
+      ? <BankInbox lines={lines} accounts={accounts} rules={rules} candidates={candidates} simple={simple} businessType={company.business_type} vatRegistered={company.vat_registered} />
       : <section className="card overflow-hidden">
           <ul className="divide-y divide-slate-100">{lines.map((line) => <li key={line.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
             <div><p>{line.description}</p><p className="text-xs text-slate-500">{line.transaction_date} · {names.get(line.bank_account_id)}{line.entry_number ? <> · <Link href="/journal" className="text-accent">{simple ? (line.matched_journal_line_id ? "Matched to " : "Recorded as ") : ""}{line.entry_number}</Link></> : ""}</p></div>

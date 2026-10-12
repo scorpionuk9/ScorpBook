@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { recordGuidedTransactionAction } from "@/app/actions/accounting";
+import { ownerOptions, type BusinessType } from "@/lib/accounting/bank-inbox";
 import { buildGuidedTransaction, categoryOptions, GUIDED_SCENARIOS, isMoneyAccount, PERSONAL_PAYMENT, SCENARIO_INFO, type GuidedAccount, type GuidedInput, type GuidedScenario } from "@/lib/accounting/guided";
 import { formatMoney } from "@/lib/ui/format";
 
@@ -14,33 +15,23 @@ const CATEGORY_LABELS: Partial<Record<GuidedScenario, string>> = {
   pay_hmrc: "Which tax?",
 };
 
-const OWNER_CHOICES: Partial<Record<GuidedScenario, Array<{ value: string; label: string; hint: string }>>> = {
-  owner_in: [
-    { value: "loan", label: "A loan to the business", hint: "You can take it back later, tax-free. Most common." },
-    { value: "shares", label: "Payment for shares", hint: "Usually only when the company is set up." },
-  ],
-  owner_out: [
-    { value: "loan", label: "Taking back money I lent", hint: "Repaying money you put in or paid personally." },
-    { value: "dividend", label: "A dividend", hint: "A share of the company's after-tax profits." },
-  ],
-};
-
-function emptyInput(scenario: GuidedScenario, today: string, defaultMoneyAccount: string): GuidedInput {
-  return { scenario, entry_date: today, description: "", amount: "", vat_amount: "", account_id: "", money_account_id: defaultMoneyAccount, to_account_id: "", owner_choice: "" };
+function emptyInput(scenario: GuidedScenario, today: string, defaultMoneyAccount: string, businessType: BusinessType): GuidedInput {
+  const options = ownerOptions(scenario, businessType);
+  return { scenario, entry_date: today, description: "", amount: "", vat_amount: "", account_id: "", money_account_id: defaultMoneyAccount, to_account_id: "", owner_choice: options.length === 1 ? options[0].value : "" };
 }
 
-export function GuidedEntry({ accounts, today, initialScenario, showLines }: { accounts: GuidedAccount[]; today: string; initialScenario?: GuidedScenario; showLines: boolean }) {
+export function GuidedEntry({ accounts, today, initialScenario, showLines, businessType, vatRegistered }: { accounts: GuidedAccount[]; today: string; initialScenario?: GuidedScenario; showLines: boolean; businessType: BusinessType; vatRegistered: boolean }) {
   const router = useRouter();
   const moneyAccounts = accounts.filter((account) => account.is_active && isMoneyAccount(account));
   const defaultMoneyAccount = (accounts.find((account) => account.system_role === "BANK_CURRENT" && account.is_active) ?? moneyAccounts[0])?.id ?? "";
-  const [input, setInput] = useState<GuidedInput | null>(initialScenario ? emptyInput(initialScenario, today, defaultMoneyAccount) : null);
+  const [input, setInput] = useState<GuidedInput | null>(initialScenario ? emptyInput(initialScenario, today, defaultMoneyAccount, businessType) : null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const names = useMemo(() => new Map(accounts.map((account) => [account.id, account.name])), [accounts]);
 
   if (!input) {
     return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {GUIDED_SCENARIOS.map((scenario) => <button key={scenario} type="button" onClick={() => { setMessage(null); setInput(emptyInput(scenario, today, defaultMoneyAccount)); }}
+      {GUIDED_SCENARIOS.map((scenario) => <button key={scenario} type="button" onClick={() => { setMessage(null); setInput(emptyInput(scenario, today, defaultMoneyAccount, businessType)); }}
         className="card p-5 text-left transition hover:border-accent hover:shadow-md">
         <span className="block font-semibold">{SCENARIO_INFO[scenario].title}</span>
         <span className="mt-1 block text-sm text-slate-500">{SCENARIO_INFO[scenario].hint}</span>
@@ -51,7 +42,8 @@ export function GuidedEntry({ accounts, today, initialScenario, showLines }: { a
   const scenario = input.scenario;
   const set = (patch: Partial<GuidedInput>) => setInput({ ...input, ...patch });
   const categories = categoryOptions(scenario, accounts);
-  const allowsVat = scenario === "money_in" || scenario === "money_out" || scenario === "equipment";
+  const allowsVat = vatRegistered && (scenario === "money_in" || scenario === "money_out" || scenario === "equipment");
+  const ownerChoices = ownerOptions(scenario, businessType);
   const allowsPersonal = scenario === "money_out" || scenario === "equipment";
   const preview = buildGuidedTransaction(input, accounts);
   const moneyLabel = scenario === "money_in" || scenario === "owner_in" ? "Which account did it go into?" : scenario === "transfer" ? "From" : "How did you pay?";
@@ -65,7 +57,7 @@ export function GuidedEntry({ accounts, today, initialScenario, showLines }: { a
     try {
       const result = await recordGuidedTransactionAction(input);
       setMessage({ ok: result.ok, text: result.message });
-      if (result.ok) { setInput(emptyInput(scenario, input.entry_date, input.money_account_id === PERSONAL_PAYMENT ? defaultMoneyAccount : input.money_account_id)); router.refresh(); }
+      if (result.ok) { setInput(emptyInput(scenario, input.entry_date, input.money_account_id === PERSONAL_PAYMENT ? defaultMoneyAccount : input.money_account_id, businessType)); router.refresh(); }
     } catch {
       setMessage({ ok: false, text: "The transaction could not be saved. Please try again." });
     } finally { setBusy(false); }
@@ -91,8 +83,8 @@ export function GuidedEntry({ accounts, today, initialScenario, showLines }: { a
         {!categories.length && <span className="mt-1 block text-xs font-normal text-red-700">No suitable categories are set up yet. Add one under Setup → Categories.</span>}
       </label>}
 
-      {OWNER_CHOICES[scenario] && <fieldset><legend className="text-sm font-semibold text-slate-700">What kind of money is it?</legend>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">{OWNER_CHOICES[scenario]!.map((choice) =>
+      {ownerChoices.length > 1 && <fieldset><legend className="text-sm font-semibold text-slate-700">What kind of money is it?</legend>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">{ownerChoices.map((choice) =>
           <label key={choice.value} className={`cursor-pointer rounded-lg border p-3 text-sm ${input.owner_choice === choice.value ? "border-accent bg-emerald-50" : "border-slate-200 hover:bg-slate-50"}`}>
             <input type="radio" name="owner_choice" className="sr-only" checked={input.owner_choice === choice.value} onChange={() => set({ owner_choice: choice.value })} />
             <span className="block font-semibold">{choice.label}</span><span className="mt-0.5 block text-xs text-slate-500">{choice.hint}</span>
@@ -118,7 +110,7 @@ export function GuidedEntry({ accounts, today, initialScenario, showLines }: { a
 
       {allowsVat && <label className="block text-sm font-semibold text-slate-700">VAT included in the total (£)
         <input inputMode="decimal" className="field mt-1.5" placeholder="Leave blank if there's no VAT" value={input.vat_amount} onChange={(event) => set({ vat_amount: event.target.value })} />
-        <span className="mt-1 block text-xs font-normal text-slate-500">Only if your business is VAT registered and the {scenario === "money_in" ? "invoice you issued" : "receipt"} shows VAT.</span>
+        <span className="mt-1 block text-xs font-normal text-slate-500">Only if the {scenario === "money_in" ? "invoice you issued" : "receipt"} shows VAT.</span>
       </label>}
 
       <label className="block text-sm font-semibold text-slate-700">Description

@@ -1,6 +1,6 @@
 # ScorpBook
 
-ScorpBook is the single-company accounting app for Scorpia Tech Ltd. Its journal actions use the database's atomic draft, post and reversal RPCs; posted entries remain immutable. Invoices, payments and expenses from ScorpInvoice post automatically through a signed webhook (see below).
+ScorpBook is plain-English, multi-company bookkeeping for UK limited companies and sole traders (free beta). Its journal actions use the database's atomic draft, post and reversal RPCs; posted entries remain immutable. Invoices, payments and expenses from ScorpInvoice post automatically through a signed webhook (see below).
 
 ## Run locally
 
@@ -8,14 +8,13 @@ ScorpBook is the single-company accounting app for Scorpia Tech Ltd. Its journal
 2. Copy `.env.example` to `.env.local` and set:
    - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from the Supabase project API settings.
    - `SUPABASE_SERVICE_ROLE_KEY` from the project API settings. Keep this secret server-side; never use a `NEXT_PUBLIC_` name for it.
-   - `SCORPBOOK_ALLOWED_USER_IDS` to the UUID(s) of authorized users from Supabase Auth. Multiple UUIDs can be comma-separated.
    - `SCORPINVOICE_WEBHOOK_SECRET` to a long random value shared with ScorpInvoice's `SCORPBOOK_WEBHOOK_SECRET` (optional; sync is off without it).
-3. Create the operator account in Supabase Auth (email/password sign-in must be enabled), then add its user UUID to the allowlist above.
+3. Enable email/password sign-up in Supabase Auth. Anyone can sign up; after confirming their email they set up a business at `/onboarding`.
 4. Add the local and deployed callback URLs (`http://localhost:3000/auth/callback` and your deployed `/auth/callback`) to Supabase Auth's allowed redirect URLs for email confirmation.
 5. Ensure the ledger migrations in `supabase/migrations` have been applied to the Supabase project.
 6. Run `npm run dev` and open `http://localhost:3000`.
 
-The service-role key is used only in server modules. Each page and server action requires a valid Supabase Auth session and an allowlisted user ID. Direct browser access to the ledger remains blocked by RLS. The current app is intentionally tied to tenant `00000000-0000-4000-8000-000000000001`.
+The service-role key is used only in server modules. Every page and action resolves the signed-in user's company from `accounting_memberships` (`lib/accounting/auth.ts`); the selected company is kept in a cookie and each query is filtered by it. Roles: **Owner** (everything, including business details and the team), **Accountant** (all bookkeeping), **Viewer** (read-only); actions that change the books require Accountant. Direct browser access to the ledger remains blocked by RLS.
 
 ## Deploy
 
@@ -29,6 +28,8 @@ npm run deploy
 
 ## Implemented workflows
 
+- Sign up, then create a business (sole trader or limited company, VAT status, financial year end); `create_accounting_tenant` seeds the matching chart of accounts. Users can belong to several businesses and switch between them. Owners invite people by link (`/settings/team`; the link is shown once, only its hash is stored, valid 14 days, must be accepted with the invited email).
+- ScorpInvoice users choose **Settings → Connect to ScorpBook**: a signed 30-minute link brings them to `/connect/scorpinvoice`, where they sign in, pick a business they own and optionally import existing records. ScorpBook then calls ScorpInvoice's signed `/api/scorpbook/connect` to start the sync, and only accepts webhook events from linked ScorpInvoice accounts (`scorpinvoice_links`).
 - Land on a dashboard after sign-in showing money in the bank, receivables, payables, net VAT, profit this month/year, and outstanding tasks. A Simple/Accountant toggle (per-browser cookie) switches between plain-language labels and standard accounting terms.
 - Upload bank statement CSVs at `/banking/inbox` (column mapping auto-detects common UK bank exports, including separate paid-in/paid-out columns; re-uploads skip lines already imported). Each line is categorised through the guided-entry builder, matched to an entry already posted on that account (same amount, within 7 days), or ignored. "Always treat … like this" saves a text rule that pre-fills future lines; rules only suggest, and "Save all suggested" confirms them in bulk.
 - Calculate the 9-box VAT return for any period at `/reports/vat-return` (standard/accrual scheme from posted entries; HMRC settlements, wages, depreciation, Corporation Tax, bad debts and FX are excluded), download it as CSV and mark it as filed, which stores the figures. Submitting to HMRC through Making Tax Digital is not implemented.

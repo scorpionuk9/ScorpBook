@@ -5,15 +5,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/ui/next-path";
 
 export default function LoginPage() {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [next, setNext] = useState("/dashboard");
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("confirmation") === "failed") {
+    const params = new URLSearchParams(window.location.search);
+    setNext(safeNextPath(params.get("next")));
+    if (params.get("confirmation") === "failed") {
       setMessage("This confirmation link is invalid or has expired. Please sign up again or contact an administrator.");
     }
   }, []);
@@ -28,7 +32,7 @@ export default function LoginPage() {
         password: String(formData.get("password") || ""),
       });
       if (error) throw error;
-      router.replace("/dashboard");
+      router.replace(next);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Sign in failed. Please check your details and try again.");
@@ -39,7 +43,7 @@ export default function LoginPage() {
     <div className="mb-8">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#0e9f91]">Welcome back</p>
       <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#0a1a38]">Sign in to ScorpBook</h1>
-      <p className="mt-2 text-sm leading-6 text-slate-500">Sign in to continue managing your company books.</p>
+      <p className="mt-2 text-sm leading-6 text-slate-500">Sign in to continue with your books.</p>
     </div>
     <form action={submit} className="space-y-5">
       <label className="block text-sm font-semibold text-slate-700">Email address
@@ -53,6 +57,6 @@ export default function LoginPage() {
       {message && <p role="status" aria-live="polite" className={`rounded-xl px-4 py-3 text-sm ${message.startsWith("Email confirmed") ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{message}</p>}
       <button className="w-full rounded-xl bg-[#087f78] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#066a65] focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-wait disabled:opacity-60" disabled={busy} type="submit">{busy ? "Signing in…" : "Sign in"}</button>
     </form>
-    <p className="mt-7 text-center text-sm text-slate-500">New to ScorpBook? <Link href="/signup" className="font-semibold text-[#087f78] hover:underline">Create an account</Link></p>
+    <p className="mt-7 text-center text-sm text-slate-500">New to ScorpBook? <Link href={next === "/dashboard" ? "/signup" : `/signup?next=${encodeURIComponent(next)}`} className="font-semibold text-[#087f78] hover:underline">Create an account</Link></p>
   </AuthShell>;
 }

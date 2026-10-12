@@ -343,6 +343,56 @@ export type Database = {
           },
         ]
       }
+      accounting_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          revoked_at: string | null
+          role: string
+          tenant_id: string
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          revoked_at?: string | null
+          role: string
+          tenant_id: string
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          revoked_at?: string | null
+          role?: string
+          tenant_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_invitations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_journal_entries: {
         Row: {
           created_at: string
@@ -514,6 +564,35 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "accounting_journal_number_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_memberships: {
+        Row: {
+          created_at: string
+          role: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_memberships_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "accounting_tenants"
@@ -937,19 +1016,34 @@ export type Database = {
       }
       accounting_tenants: {
         Row: {
+          business_type: string
           created_at: string
+          created_by: string | null
           id: string
           name: string
+          vat_registered: boolean
+          year_end_day: number
+          year_end_month: number
         }
         Insert: {
+          business_type?: string
           created_at?: string
+          created_by?: string | null
           id: string
           name: string
+          vat_registered?: boolean
+          year_end_day?: number
+          year_end_month?: number
         }
         Update: {
+          business_type?: string
           created_at?: string
+          created_by?: string | null
           id?: string
           name?: string
+          vat_registered?: boolean
+          year_end_day?: number
+          year_end_month?: number
         }
         Relationships: []
       }
@@ -1014,6 +1108,38 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounting_accounts"
             referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      scorpinvoice_links: {
+        Row: {
+          created_at: string
+          linked_by: string
+          scorpinvoice_email: string | null
+          scorpinvoice_user_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          linked_by: string
+          scorpinvoice_email?: string | null
+          scorpinvoice_user_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          linked_by?: string
+          scorpinvoice_email?: string | null
+          scorpinvoice_user_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorpinvoice_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1188,6 +1314,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_accounting_invitation: {
+        Args: { p_email: string; p_token_hash: string; p_user_id: string }
+        Returns: string
+      }
       allocate_journal_entry_number: {
         Args: {
           p_entry_date: string
@@ -1224,6 +1354,17 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: Json
+      }
+      create_accounting_tenant: {
+        Args: {
+          p_business_type: string
+          p_name: string
+          p_user_id: string
+          p_vat_registered: boolean
+          p_year_end_day: number
+          p_year_end_month: number
+        }
+        Returns: string
       }
       create_bank_reconciliation: {
         Args: {
@@ -1449,6 +1590,14 @@ export type Database = {
       scorpbook_role_account: {
         Args: { p_role: string; p_tenant_id: string }
         Returns: string
+      }
+      seed_chart_of_accounts: {
+        Args: { p_business_type: string; p_tenant_id: string }
+        Returns: undefined
+      }
+      set_accounting_member_role: {
+        Args: { p_role: string; p_tenant_id: string; p_user_id: string }
+        Returns: undefined
       }
       set_bank_feed_line_ignored: {
         Args: {

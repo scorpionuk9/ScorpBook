@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireAccountingUser } from "@/lib/accounting/auth";
 import { createAdminClient } from "@/lib/supabase/server";
-import { SCORPBOOK_TENANT_ID } from "@/lib/accounting/constants";
+import { currentTenantId } from "@/lib/accounting/auth";
 import { listAccounts } from "@/lib/accounting/service";
 import type { ExactJournalLine, JournalEntry } from "@/lib/accounting/service";
 import { JournalComposer } from "@/components/journal/journal-composer";
@@ -13,9 +13,10 @@ export default async function EditJournalPage({ params }: { params: Promise<{ id
   await requireAccountingUser();
   const { id } = await params;
   const client = createAdminClient();
+  const tenant = await currentTenantId();
   const [{ data: entry, error }, { data: lines, error: linesError }, accounts] = await Promise.all([
-    client.from("accounting_journal_entries").select("*").eq("tenant_id", SCORPBOOK_TENANT_ID).eq("id", id).maybeSingle(),
-    client.from("accounting_journal_lines").select("id, tenant_id, entry_id, account_id, description, created_at, debit::text, credit::text").eq("tenant_id", SCORPBOOK_TENANT_ID).eq("entry_id", id),
+    client.from("accounting_journal_entries").select("*").eq("tenant_id", tenant).eq("id", id).maybeSingle(),
+    client.from("accounting_journal_lines").select("id, tenant_id, entry_id, account_id, description, created_at, debit::text, credit::text").eq("tenant_id", tenant).eq("entry_id", id),
     listAccounts(),
   ]);
   if (error || linesError || !entry) notFound();

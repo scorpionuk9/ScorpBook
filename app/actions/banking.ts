@@ -16,8 +16,8 @@ function refreshBanking() {
 }
 
 export async function importBankFeedAction(input: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const { imported, skipped } = await importBankFeed(input, user.id);
     refreshBanking();
     return { ok: true, message: `Imported ${imported} transaction${imported === 1 ? "" : "s"}${skipped ? `; skipped ${skipped} already imported` : ""}.` };
@@ -25,8 +25,8 @@ export async function importBankFeedAction(input: unknown): Promise<ActionResult
 }
 
 export async function categoriseBankFeedLineAction(input: unknown): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     const entry = await categoriseBankFeedLine(input, user.id);
     refreshBanking();
     return { ok: true, message: `Recorded as ${entry.entry_number}.`, id: entry.id, entry_number: entry.entry_number };
@@ -34,8 +34,8 @@ export async function categoriseBankFeedLineAction(input: unknown): Promise<Acti
 }
 
 export async function matchBankFeedLineAction(formData: FormData): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     await matchBankFeedLine(String(formData.get("line_id") || ""), String(formData.get("journal_line_id") || ""), user.id);
     refreshBanking();
     return { ok: true, message: "Matched." };
@@ -43,8 +43,8 @@ export async function matchBankFeedLineAction(formData: FormData): Promise<Actio
 }
 
 export async function setBankFeedLineIgnoredAction(formData: FormData): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     await setBankFeedLineIgnored(String(formData.get("line_id") || ""), formData.get("ignored") === "true", user.id);
     refreshBanking();
     return { ok: true, message: "Updated." };
@@ -52,8 +52,8 @@ export async function setBankFeedLineIgnoredAction(formData: FormData): Promise<
 }
 
 export async function deleteBankRuleAction(formData: FormData): Promise<ActionResult> {
-  await requireAccountingUser();
   try {
+    await requireAccountingUser("ACCOUNTANT");
     await deleteBankRule(String(formData.get("rule_id") || ""));
     revalidatePath("/banking/inbox");
     return { ok: true, message: "Rule removed." };
@@ -61,8 +61,8 @@ export async function deleteBankRuleAction(formData: FormData): Promise<ActionRe
 }
 
 export async function fileVatReturnAction(formData: FormData): Promise<ActionResult> {
-  const user = await requireAccountingUser();
   try {
+    const user = await requireAccountingUser("ACCOUNTANT");
     await fileVatReturn(String(formData.get("start") || ""), String(formData.get("end") || ""), user.id);
     revalidatePath("/reports/vat-return");
     return { ok: true, message: "Marked as filed." };
