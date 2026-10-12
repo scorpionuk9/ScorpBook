@@ -63,6 +63,7 @@ export default async function DashboardPage() {
   const yearProfit = profit(yearRows);
 
   const todos: Array<{ text: string; href: string }> = [];
+  if (summary.bank_inbox_count) todos.push({ text: `${summary.bank_inbox_count} bank transaction${summary.bank_inbox_count === 1 ? "" : "s"} to sort out`, href: "/banking/inbox" });
   if (summary.sync_attention_count) todos.push({ text: `${summary.sync_attention_count} ScorpInvoice update${summary.sync_attention_count === 1 ? "" : "s"} couldn't be recorded`, href: "/integrations/scorpinvoice" });
   if (summary.overdue_bill_count) todos.push({ text: `${summary.overdue_bill_count} bill${summary.overdue_bill_count === 1 ? " is" : "s are"} past the due date`, href: "/bills" });
   if (summary.draft_bill_count) todos.push({ text: `${summary.draft_bill_count} draft bill${summary.draft_bill_count === 1 ? "" : "s"} not yet confirmed`, href: "/bills" });
@@ -80,7 +81,7 @@ export default async function DashboardPage() {
     </div><Link className="button" href="/record">＋ Record something</Link></div>
 
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <SummaryCard title={simple ? "Money in the bank" : "Cash and bank"} amount={cash} tone={cash.lt(0) ? "bad" : "neutral"} href="/banking"
+      <SummaryCard title={simple ? "Money in the bank" : "Cash and bank"} amount={cash} tone={cash.lt(0) ? "bad" : "neutral"} href="/banking/inbox"
         explain={simple ? "What your records say is in your bank and payment accounts. Run a bank check to make sure it matches your statement." : "Sum of 10xx bank and clearing account balances."}
         footer={bankRows.length > 1 ? <ul className="space-y-1">{bankRows.map((row) => <li key={row.account_id} className="flex justify-between gap-3"><span>{row.account_name}</span><span className="tabular-nums">{formatMoney(balance(row))}</span></li>)}</ul> : undefined} />
       <SummaryCard title={simple ? "Customers owe you" : "Accounts receivable"} amount={owedToYou}

@@ -4,9 +4,10 @@ import type { Json, Tables } from "@/types/supabase";
 import { createAdminClient } from "@/lib/supabase/server";
 import { SCORPBOOK_TENANT_ID } from "@/lib/accounting/constants";
 import { z } from "zod";
-import { accountSchema, guidedTransactionSchema, bankMatchSchema, bankReconciliationSchema, bankStatementLineIdSchema, bankStatementRowsSchema, completeBankReconciliationSchema, journalSchema, postSchema, reverseSchema, supplierBillPaymentSchema, supplierBillSchema, supplierSchema } from "@/lib/accounting/schemas";
+import { accountSchema, bankFeedCategoriseSchema, bankFeedImportSchema, guidedTransactionSchema, vatPeriodSchema, bankMatchSchema, bankReconciliationSchema, bankStatementLineIdSchema, bankStatementRowsSchema, completeBankReconciliationSchema, journalSchema, postSchema, reverseSchema, supplierBillPaymentSchema, supplierBillSchema, supplierSchema } from "@/lib/accounting/schemas";
 import Decimal from "decimal.js";
 import { buildGuidedTransaction } from "@/lib/accounting/guided";
+import { scenariosFor, toGuidedInput, type BankFeedLine, type BankRule } from "@/lib/accounting/bank-inbox";
 
 export type Account = Tables<"accounting_accounts">;
 export type Supplier = Tables<"accounting_suppliers">;
@@ -481,6 +482,7 @@ export type DashboardSummary = {
   overdue_bill_count: number;
   open_reconciliation_count: number;
   sync_attention_count: number;
+  bank_inbox_count: number;
   closable_periods: AccountingPeriod[];
 };
 
@@ -488,7 +490,7 @@ export async function getDashboardSummary(today: string): Promise<DashboardSumma
   const date = z.iso.date().parse(today);
   const client = createAdminClient();
   const count = { count: "exact", head: true } as const;
-  const [balances, drafts, draftBills, overdueBills, openReconciliations, periods, syncAttention] = await Promise.all([
+  const [balances, drafts, draftBills, overdueBills, openReconciliations, periods, syncAttention, bankInbox] = await Promise.all([
     getTrialBalance(date),
     client.from("accounting_journal_entries").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "DRAFT"),
     client.from("accounting_supplier_bills").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "DRAFT"),
@@ -499,6 +501,7 @@ export async function getDashboardSummary(today: string): Promise<DashboardSumma
       .lt("period_end", date).order("period_start"),
     client.from("webhook_events").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID)
       .eq("source_system", "SCORPINVOICE").eq("status", "NEEDS_ATTENTION"),
+    client.from("accounting_bank_feed_lines").select("id", count).eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "NEW"),
   ]);
   throwOnError(drafts.error, "Failed to count draft journal entries");
   throwOnError(draftBills.error, "Failed to count draft bills");
@@ -506,6 +509,7 @@ export async function getDashboardSummary(today: string): Promise<DashboardSumma
   throwOnError(openReconciliations.error, "Failed to count open bank reconciliations");
   throwOnError(periods.error, "Failed to load open accounting periods");
   throwOnError(syncAttention.error, "Failed to count ScorpInvoice updates needing attention");
+  throwOnError(bankInbox.error, "Failed to count bank transactions to categorise");
   return {
     balances,
     draft_journal_count: drafts.count ?? 0,
@@ -513,6 +517,7 @@ export async function getDashboardSummary(today: string): Promise<DashboardSumma
     overdue_bill_count: overdueBills.count ?? 0,
     open_reconciliation_count: openReconciliations.count ?? 0,
     sync_attention_count: syncAttention.count ?? 0,
+    bank_inbox_count: bankInbox.count ?? 0,
     closable_periods: periods.data ?? [],
   };
 }
@@ -528,4 +533,143 @@ export async function recordGuidedTransaction(input: unknown, actorId: string): 
   });
   throwOnError(error, "Failed to record transaction");
   return numberedJournalEntrySchema.parse(data);
+}
+
+export type StoredBankFeedLine = BankFeedLine & { status: string; journal_entry_id: string | null; matched_journal_line_id: string | null; entry_number: string | null };
+export type BankMatchCandidate = { journal_line_id: string; entry_id: string; entry_number: string; entry_date: string; description: string | null; amount: string; bank_account_id: string };
+
+export async function listBankFeedLines(status: "NEW" | "DONE" | "IGNORED", limit = 200): Promise<StoredBankFeedLine[]> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("accounting_bank_feed_lines")
+    .select("id, bank_account_id, transaction_date, description, reference, amount::text, status, journal_entry_id, matched_journal_line_id")
+    .eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", status)
+    .order("transaction_date", { ascending: status === "NEW" }).order("imported_at").limit(limit);
+  throwOnError(error, "Failed to load bank transactions");
+  const rows = (data ?? []) as Array<Omit<StoredBankFeedLine, "entry_number">>;
+  const entryIds = rows.flatMap((row) => row.journal_entry_id ? [row.journal_entry_id] : []);
+  const numbers = new Map<string, string>();
+  if (entryIds.length) {
+    const entries = await client.from("accounting_journal_entries").select("id, entry_number").eq("tenant_id", SCORPBOOK_TENANT_ID).in("id", entryIds);
+    throwOnError(entries.error, "Failed to load linked entries");
+    for (const entry of entries.data ?? []) numbers.set(entry.id, entry.entry_number);
+  }
+  return rows.map((row) => ({ ...row, entry_number: row.journal_entry_id ? numbers.get(row.journal_entry_id) ?? null : null }));
+}
+
+// Posted lines on the same bank account with the same amount within a week,
+// not already linked to another bank line: likely the same money movement.
+export async function listBankMatchCandidates(lines: BankFeedLine[]): Promise<Map<string, BankMatchCandidate[]>> {
+  const result = new Map<string, BankMatchCandidate[]>();
+  if (!lines.length) return result;
+  const client = createAdminClient();
+  const dates = lines.map((line) => line.transaction_date).sort();
+  const shift = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+  const accountIds = [...new Set(lines.map((line) => line.bank_account_id))];
+  const [entries, linked] = await Promise.all([
+    client.from("accounting_journal_entries").select("id, entry_number, entry_date, description")
+      .eq("tenant_id", SCORPBOOK_TENANT_ID).eq("status", "POSTED")
+      .gte("entry_date", shift(dates[0], -7)).lte("entry_date", shift(dates[dates.length - 1], 7)),
+    client.from("accounting_bank_feed_lines").select("journal_entry_id").eq("tenant_id", SCORPBOOK_TENANT_ID).not("journal_entry_id", "is", null),
+  ]);
+  throwOnError(entries.error, "Failed to load entries to match");
+  throwOnError(linked.error, "Failed to load linked bank transactions");
+  const used = new Set((linked.data ?? []).map((row) => row.journal_entry_id));
+  const entryMap = new Map((entries.data ?? []).filter((entry) => !used.has(entry.id)).map((entry) => [entry.id, entry]));
+  if (!entryMap.size) return result;
+  const ledgerLines = await client.from("accounting_journal_lines").select("id, entry_id, account_id, debit::text, credit::text")
+    .eq("tenant_id", SCORPBOOK_TENANT_ID).in("account_id", accountIds).in("entry_id", [...entryMap.keys()]);
+  throwOnError(ledgerLines.error, "Failed to load ledger lines to match");
+  const candidates: BankMatchCandidate[] = (ledgerLines.data ?? []).map((line) => {
+    const entry = entryMap.get(line.entry_id)!;
+    return { journal_line_id: line.id, entry_id: entry.id, entry_number: entry.entry_number, entry_date: entry.entry_date, description: entry.description,
+      amount: new Decimal(line.debit).minus(line.credit).toFixed(2), bank_account_id: line.account_id };
+  });
+  for (const line of lines) {
+    const lineAmount = new Decimal(line.amount);
+    const matches = candidates.filter((candidate) => candidate.bank_account_id === line.bank_account_id && lineAmount.eq(candidate.amount)
+      && Math.abs(Date.parse(candidate.entry_date) - Date.parse(line.transaction_date)) <= 7 * 86_400_000)
+      .sort((a, b) => Math.abs(Date.parse(a.entry_date) - Date.parse(line.transaction_date)) - Math.abs(Date.parse(b.entry_date) - Date.parse(line.transaction_date)));
+    if (matches.length) result.set(line.id, matches.slice(0, 3));
+  }
+  return result;
+}
+
+export async function listBankRules(): Promise<BankRule[]> {
+  const { data, error } = await createAdminClient().from("accounting_bank_rules")
+    .select("id, match_text, direction, scenario, account_id, owner_choice").eq("tenant_id", SCORPBOOK_TENANT_ID).order("match_text");
+  throwOnError(error, "Failed to load bank rules");
+  return (data ?? []) as BankRule[];
+}
+
+export async function deleteBankRule(ruleId: string): Promise<void> {
+  const { error } = await createAdminClient().from("accounting_bank_rules").delete()
+    .eq("tenant_id", SCORPBOOK_TENANT_ID).eq("id", z.string().uuid().parse(ruleId));
+  throwOnError(error, "Failed to delete rule");
+}
+
+export async function importBankFeed(input: unknown, actorId: string): Promise<{ imported: number; skipped: number }> {
+  const feed = bankFeedImportSchema.parse(input);
+  const { data, error } = await createAdminClient().rpc("import_bank_feed_lines", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_bank_account_id: feed.bank_account_id, p_rows: feed.rows as unknown as Json,
+  });
+  throwOnError(error, "Failed to import bank statement");
+  return z.object({ imported: z.number(), skipped: z.number() }).parse(data);
+}
+
+export async function categoriseBankFeedLine(input: unknown, actorId: string): Promise<NumberedJournalEntry> {
+  const choice = bankFeedCategoriseSchema.parse(input);
+  const client = createAdminClient();
+  const { data: line, error } = await client.from("accounting_bank_feed_lines")
+    .select("id, bank_account_id, transaction_date, description, reference, amount::text, status")
+    .eq("tenant_id", SCORPBOOK_TENANT_ID).eq("id", choice.line_id).maybeSingle();
+  throwOnError(error, "Failed to load bank transaction");
+  if (!line || line.status !== "NEW") throw new Error("This bank transaction has already been dealt with.");
+  if (!scenariosFor(line).includes(choice.scenario)) throw new Error("That option doesn't fit money going this way.");
+  const built = buildGuidedTransaction(toGuidedInput(line, choice), await listAccounts());
+  if (!built.ok) throw new Error(built.error);
+  const { data, error: rpcError } = await client.rpc("categorise_bank_feed_line", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_line_id: line.id, p_lines: built.lines as unknown as Json,
+    p_description: line.description, p_scenario: choice.scenario,
+    p_rule: (choice.remember_text ? { match_text: choice.remember_text, account_id: choice.account_id, owner_choice: choice.owner_choice } : null) as unknown as Json,
+  });
+  throwOnError(rpcError, "Failed to record bank transaction");
+  return numberedJournalEntrySchema.parse(data);
+}
+
+export async function matchBankFeedLine(lineId: string, journalLineId: string, actorId: string): Promise<void> {
+  const { error } = await createAdminClient().rpc("match_bank_feed_line", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_line_id: z.string().uuid().parse(lineId), p_journal_line_id: z.string().uuid().parse(journalLineId),
+  });
+  throwOnError(error, "Failed to match bank transaction");
+}
+
+export async function setBankFeedLineIgnored(lineId: string, ignored: boolean, actorId: string): Promise<void> {
+  const { error } = await createAdminClient().rpc("set_bank_feed_line_ignored", {
+    p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_line_id: z.string().uuid().parse(lineId), p_ignored: ignored,
+  });
+  throwOnError(error, "Failed to update bank transaction");
+}
+
+export type VatBoxes = Record<"box1" | "box2" | "box3" | "box4" | "box5" | "box6" | "box7" | "box8" | "box9", string>;
+export type FiledVatReturn = { id: string; period_start: string; period_end: string; boxes: VatBoxes; filed_at: string };
+const vatBoxesSchema = z.object({ box1: z.string(), box2: z.string(), box3: z.string(), box4: z.string(), box5: z.string(), box6: z.string(), box7: z.string(), box8: z.string(), box9: z.string() });
+
+export async function getVatReturn(start: string, end: string): Promise<VatBoxes> {
+  const period = vatPeriodSchema.parse({ start, end });
+  const { data, error } = await createAdminClient().rpc("get_vat_return", { p_tenant_id: SCORPBOOK_TENANT_ID, p_start: period.start, p_end: period.end });
+  throwOnError(error, "Failed to calculate VAT return");
+  return vatBoxesSchema.parse(data);
+}
+
+export async function listFiledVatReturns(): Promise<FiledVatReturn[]> {
+  const { data, error } = await createAdminClient().from("accounting_vat_returns").select("id, period_start, period_end, boxes, filed_at")
+    .eq("tenant_id", SCORPBOOK_TENANT_ID).order("period_start", { ascending: false });
+  throwOnError(error, "Failed to load VAT returns");
+  return (data ?? []).map((row) => ({ ...row, boxes: vatBoxesSchema.parse(row.boxes) }));
+}
+
+export async function fileVatReturn(start: string, end: string, actorId: string): Promise<void> {
+  const period = vatPeriodSchema.parse({ start, end });
+  const { error } = await createAdminClient().rpc("file_vat_return", { p_tenant_id: SCORPBOOK_TENANT_ID, p_actor_id: actorId, p_start: period.start, p_end: period.end });
+  throwOnError(error, "Failed to mark VAT return as filed");
 }

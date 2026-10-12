@@ -55,7 +55,7 @@ export function categoryOptions(scenario: GuidedScenario, accounts: GuidedAccoun
   const active = accounts.filter((account) => account.is_active);
   switch (scenario) {
     case "money_in": return active.filter((account) => account.type === "REVENUE");
-    case "money_out": return active.filter((account) => account.type === "EXPENSE" && account.system_role !== "FX_GAINS_LOSSES");
+    case "money_out": return active.filter((account) => account.type === "EXPENSE" && !["FX_GAINS_LOSSES", "DEPRECIATION"].includes(account.system_role ?? ""));
     case "equipment": return active.filter(isEquipmentAccount);
     case "pay_hmrc": return active.filter((account) => account.system_role !== null && HMRC_ROLES.includes(account.system_role));
     default: return [];

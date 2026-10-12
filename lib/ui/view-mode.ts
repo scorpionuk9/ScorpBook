@@ -17,6 +17,7 @@ export const LABELS = {
     accountsIntro: "The categories your money is sorted into. Categories can be switched off but never deleted, so past records stay intact.",
     suppliers: "Suppliers",
     bills: "Bills to pay",
+    bankInbox: "Bank",
     banking: "Bank check",
     bankingIntro: "Upload your bank statement and tick off each line against your records, so you know the books match the bank.",
     periods: "Month-end",
@@ -27,6 +28,7 @@ export const LABELS = {
     balanceSheet: "What you own & owe",
     balanceSheetIntro: "A snapshot of what the business owns, what it owes, and what's left for the owners on the selected date.",
     trialBalance: "Trial balance",
+    vatReturn: "VAT return",
     setup: "Setup",
   },
   accountant: {
@@ -37,6 +39,7 @@ export const LABELS = {
     accountsIntro: "Manage your company accounts. Inactive accounts remain on historical entries but cannot be used on new drafts.",
     suppliers: "Suppliers",
     bills: "Bills",
+    bankInbox: "Bank feed",
     banking: "Bank reconciliation",
     bankingIntro: "Import statement activity, match it to posted bank ledger entries, and verify each period.",
     periods: "Periods",
@@ -47,6 +50,7 @@ export const LABELS = {
     balanceSheet: "Balance sheet",
     balanceSheetIntro: "Assets, liabilities, and equity as of the selected date.",
     trialBalance: "Trial balance",
+    vatReturn: "VAT return",
     setup: "Setup",
   },
 } as const satisfies Record<ViewMode, Record<string, string>>;

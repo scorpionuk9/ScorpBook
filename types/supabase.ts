@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -55,6 +55,82 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounting_tenants"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_bank_feed_lines: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          description: string
+          fingerprint: string
+          id: string
+          imported_at: string
+          imported_by: string | null
+          journal_entry_id: string | null
+          matched_journal_line_id: string | null
+          reference: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          tenant_id: string
+          transaction_date: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          description: string
+          fingerprint: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          journal_entry_id?: string | null
+          matched_journal_line_id?: string | null
+          reference?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          tenant_id: string
+          transaction_date: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          description?: string
+          fingerprint?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          journal_entry_id?: string | null
+          matched_journal_line_id?: string | null
+          reference?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          tenant_id?: string
+          transaction_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_bank_feed_lines_tenant_id_bank_account_id_fkey"
+            columns: ["tenant_id", "bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "accounting_bank_feed_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_bank_feed_lines_tenant_id_journal_entry_id_fkey"
+            columns: ["tenant_id", "journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_journal_entries"
+            referencedColumns: ["tenant_id", "id"]
           },
         ]
       }
@@ -153,6 +229,57 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "accounting_accounts"
             referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      accounting_bank_rules: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          match_text: string
+          owner_choice: string | null
+          scenario: string
+          tenant_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          match_text: string
+          owner_choice?: string | null
+          scenario: string
+          tenant_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          match_text?: string
+          owner_choice?: string | null
+          scenario?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_bank_rules_tenant_id_account_id_fkey"
+            columns: ["tenant_id", "account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "accounting_bank_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -826,10 +953,193 @@ export type Database = {
         }
         Relationships: []
       }
+      accounting_vat_returns: {
+        Row: {
+          boxes: Json
+          filed_at: string
+          filed_by: string | null
+          id: string
+          period_end: string
+          period_start: string
+          tenant_id: string
+        }
+        Insert: {
+          boxes: Json
+          filed_at?: string
+          filed_by?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          tenant_id: string
+        }
+        Update: {
+          boxes?: Json
+          filed_at?: string
+          filed_by?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_vat_returns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scorpinvoice_expense_accounts: {
+        Row: {
+          account_id: string
+          category: string
+          tenant_id: string
+        }
+        Insert: {
+          account_id: string
+          category: string
+          tenant_id: string
+        }
+        Update: {
+          account_id?: string
+          category?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorpinvoice_expense_accounts_tenant_id_account_id_fkey"
+            columns: ["tenant_id", "account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      scorpinvoice_postings: {
+        Row: {
+          aggregate_id: string
+          aggregate_type: string
+          amount: number
+          created_at: string
+          credit_account_id: string
+          debit_account_id: string
+          id: string
+          is_active: boolean
+          journal_entry_id: string
+          kind: string
+          reversed_by_entry_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          aggregate_id: string
+          aggregate_type: string
+          amount: number
+          created_at?: string
+          credit_account_id: string
+          debit_account_id: string
+          id?: string
+          is_active?: boolean
+          journal_entry_id: string
+          kind: string
+          reversed_by_entry_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          aggregate_id?: string
+          aggregate_type?: string
+          amount?: number
+          created_at?: string
+          credit_account_id?: string
+          debit_account_id?: string
+          id?: string
+          is_active?: boolean
+          journal_entry_id?: string
+          kind?: string
+          reversed_by_entry_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorpinvoice_postings_tenant_id_journal_entry_id_fkey"
+            columns: ["tenant_id", "journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_journal_entries"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "scorpinvoice_postings_tenant_id_reversed_by_entry_id_fkey"
+            columns: ["tenant_id", "reversed_by_entry_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_journal_entries"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      scorpinvoice_settings: {
+        Row: {
+          expense_paid_from_account_id: string
+          tenant_id: string
+        }
+        Insert: {
+          expense_paid_from_account_id: string
+          tenant_id: string
+        }
+        Update: {
+          expense_paid_from_account_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorpinvoice_settings_tenant_id_expense_paid_from_account__fkey"
+            columns: ["tenant_id", "expense_paid_from_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_accounts"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "scorpinvoice_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scorpinvoice_sync_state: {
+        Row: {
+          aggregate_id: string
+          aggregate_type: string
+          last_snapshot_at: string
+          tenant_id: string
+        }
+        Insert: {
+          aggregate_id: string
+          aggregate_type: string
+          last_snapshot_at: string
+          tenant_id: string
+        }
+        Update: {
+          aggregate_id?: string
+          aggregate_type?: string
+          last_snapshot_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scorpinvoice_sync_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_events: {
         Row: {
-          error: string | null
           attempts: number
+          error: string | null
           event_id: string
           id: string
           payload: Json
@@ -841,24 +1151,25 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          error?: string | null
           event_id: string
           id?: string
           payload: Json
           processed_at?: string
-          status?: string
           source_system: string
+          status?: string
           tenant_id: string
           updated_at?: string
         }
         Update: {
-          error?: string | null
           attempts?: number
+          error?: string | null
           event_id?: string
           id?: string
           payload?: Json
           processed_at?: string
-          status?: string
           source_system?: string
+          status?: string
           tenant_id?: string
           updated_at?: string
         }
@@ -886,6 +1197,22 @@ export type Database = {
         Returns: string
       }
       allocate_supplier_code: { Args: { p_tenant_id: string }; Returns: string }
+      apply_scorpinvoice_snapshot: {
+        Args: { p_snapshot: Json; p_tenant_id: string }
+        Returns: string
+      }
+      categorise_bank_feed_line: {
+        Args: {
+          p_actor_id: string
+          p_description: string
+          p_line_id: string
+          p_lines: Json
+          p_rule: Json
+          p_scenario: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       close_accounting_period: {
         Args: { p_actor_id: string; p_period_id: string; p_tenant_id: string }
         Returns: Json
@@ -922,6 +1249,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      file_vat_return: {
+        Args: {
+          p_actor_id: string
+          p_end: string
+          p_start: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       get_balance_sheet: {
         Args: { p_as_of_date: string; p_tenant_id: string }
         Returns: Json
@@ -950,6 +1286,19 @@ export type Database = {
           is_active: boolean
         }[]
       }
+      get_vat_return: {
+        Args: { p_end: string; p_start: string; p_tenant_id: string }
+        Returns: Json
+      }
+      import_bank_feed_lines: {
+        Args: {
+          p_actor_id: string
+          p_bank_account_id: string
+          p_rows: Json
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       import_bank_statement_lines: {
         Args: {
           p_actor_id: string
@@ -958,6 +1307,15 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: number
+      }
+      match_bank_feed_line: {
+        Args: {
+          p_actor_id: string
+          p_journal_line_id: string
+          p_line_id: string
+          p_tenant_id: string
+        }
+        Returns: undefined
       }
       match_bank_statement_line: {
         Args: {
@@ -974,6 +1332,21 @@ export type Database = {
       }
       post_supplier_bill: {
         Args: { p_actor_id: string; p_bill_id: string; p_tenant_id: string }
+        Returns: Json
+      }
+      receive_scorpinvoice_event: {
+        Args: { p_event_id: string; p_snapshot: Json; p_tenant_id: string }
+        Returns: Json
+      }
+      record_guided_transaction: {
+        Args: {
+          p_actor_id: string
+          p_description: string
+          p_entry_date: string
+          p_lines: Json
+          p_scenario: string
+          p_tenant_id: string
+        }
         Returns: Json
       }
       record_supplier_bill_payment: {
@@ -997,21 +1370,6 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: string
-      }
-      record_guided_transaction: {
-        Args: {
-          p_actor_id: string
-          p_description: string
-          p_entry_date: string
-          p_lines: Json
-          p_scenario: string
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
-      receive_scorpinvoice_event: {
-        Args: { p_event_id: string; p_snapshot: Json; p_tenant_id: string }
-        Returns: Json
       }
       reverse_journal_entry_numbered: {
         Args: {
@@ -1084,11 +1442,42 @@ export type Database = {
         }
         Returns: string
       }
+      scorpbook_open_posting_date: {
+        Args: { p_date: string; p_tenant_id: string }
+        Returns: string
+      }
+      scorpbook_role_account: {
+        Args: { p_role: string; p_tenant_id: string }
+        Returns: string
+      }
+      set_bank_feed_line_ignored: {
+        Args: {
+          p_actor_id: string
+          p_ignored: boolean
+          p_line_id: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       suggest_journal_entry_number: {
         Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
       }
       suggest_supplier_code: { Args: { p_tenant_id: string }; Returns: string }
+      sync_scorpinvoice_posting: {
+        Args: {
+          p_aggregate_id: string
+          p_aggregate_type: string
+          p_amount: number
+          p_credit_account_id: string
+          p_debit_account_id: string
+          p_description: string
+          p_entry_date: string
+          p_kind: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       unmatch_bank_statement_line: {
         Args: {
           p_actor_id: string

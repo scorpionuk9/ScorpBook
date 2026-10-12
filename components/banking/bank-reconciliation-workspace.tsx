@@ -5,52 +5,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Decimal from "decimal.js";
 import type { BankReconciliationDetail } from "@/lib/accounting/service";
+import { parseAmount, parseCsv, parseDate } from "@/lib/banking/csv";
 import { completeBankReconciliationAction, importBankStatementAction, matchBankStatementLineAction, unmatchBankStatementLineAction } from "@/app/actions/accounting";
 
 type ImportedRow = { transaction_date: string; description: string; reference?: string; amount: string };
-
-function parseCsv(source: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let quoted = false;
-  for (let index = 0; index < source.length; index += 1) {
-    const character = source[index];
-    if (quoted) {
-      if (character === '"' && source[index + 1] === '"') { field += '"'; index += 1; }
-      else if (character === '"') quoted = false;
-      else field += character;
-    } else if (character === '"') quoted = true;
-    else if (character === ",") { row.push(field); field = ""; }
-    else if (character === "\n") { row.push(field.replace(/\r$/, "")); rows.push(row); row = []; field = ""; }
-    else field += character;
-  }
-  row.push(field.replace(/\r$/, ""));
-  if (row.some((cell) => cell.trim()) || rows.length === 0) rows.push(row);
-  if (quoted) throw new Error("The CSV contains an unclosed quoted field.");
-  return rows.filter((cells) => cells.some((cell) => cell.trim()));
-}
-
-function parseDate(value: string): string {
-  const input = value.trim();
-  let year: string; let month: string; let day: string;
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(input);
-  const uk = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(input);
-  if (iso) [, year, month, day] = iso;
-  else if (uk) [, day, month, year] = uk;
-  else throw new Error(`Unsupported transaction date: ${input}`);
-  const result = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  const check = new Date(`${result}T00:00:00Z`);
-  if (Number.isNaN(check.getTime()) || check.toISOString().slice(0, 10) !== result) throw new Error(`Invalid transaction date: ${input}`);
-  return result;
-}
-
-function parseAmount(value: string): string {
-  let input = value.trim().replace(/^(GBP|USD|EUR|£|\$|€)\s*/i, "").replaceAll(",", "").replaceAll(" ", "");
-  if (input.startsWith("(") && input.endsWith(")")) input = `-${input.slice(1, -1)}`;
-  if (!/^-?\d{1,11}(?:\.\d{1,4})?$/.test(input)) throw new Error(`Unsupported signed amount: ${value}`);
-  return input;
-}
 
 function csvRows(source: string): ImportedRow[] {
   const [headerRow, ...dataRows] = parseCsv(source.replace(/^\uFEFF/, ""));

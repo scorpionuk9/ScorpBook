@@ -122,3 +122,26 @@ export const guidedTransactionSchema = z.object({
   to_account_id: z.string().max(100),
   owner_choice: z.string().max(20),
 });
+
+export const bankFeedImportSchema = z.object({
+  bank_account_id: z.string().uuid(),
+  rows: z.array(z.object({
+    transaction_date: z.iso.date(),
+    description: z.string().trim().min(1).max(500),
+    reference: z.string().trim().max(150).optional(),
+    amount: signedAmount.refine((value) => !new Decimal(value).isZero(), "Amount must not be zero."),
+    fingerprint: z.string().min(1).max(700),
+  })).min(1).max(5000),
+});
+
+export const bankFeedCategoriseSchema = z.object({
+  line_id: z.string().uuid(),
+  scenario: z.enum(GUIDED_SCENARIOS),
+  account_id: z.string().max(100),
+  owner_choice: z.string().max(20),
+  vat_amount: z.string().max(30),
+  remember_text: z.string().trim().max(100).optional(),
+});
+
+export const vatPeriodSchema = z.object({ start: z.iso.date(), end: z.iso.date() })
+  .refine((period) => period.start <= period.end, "The VAT period must end after it starts.");

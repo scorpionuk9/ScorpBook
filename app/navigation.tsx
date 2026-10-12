@@ -10,13 +10,19 @@ function hiddenOn(pathname: string): boolean {
   return pathname === "/login" || pathname === "/signup" || pathname === "/unauthorized" || pathname.startsWith("/auth/");
 }
 
+// "/banking" (reconciliation) and "/banking/inbox" are separate menu items.
+function isActive(href: string, pathname: string): boolean {
+  if (href === "/banking" && pathname.startsWith("/banking/inbox")) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 function NavLink({ href, label, pathname }: { href: string; label: string; pathname: string }) {
-  const active = pathname === href || pathname.startsWith(`${href}/`);
+  const active = isActive(href, pathname);
   return <Link className={`block whitespace-nowrap rounded-md px-3 py-2 ${active ? "bg-emerald-50 font-semibold text-accent" : "text-slate-700 hover:bg-slate-100"}`} href={href}>{label}</Link>;
 }
 
 function NavMenu({ label, items, pathname }: { label: string; items: Array<{ href: string; label: string }>; pathname: string }) {
-  const active = items.some((item) => pathname.startsWith(item.href));
+  const active = items.some((item) => isActive(item.href, pathname));
   // Keyed by pathname so the menu closes after navigating.
   return <details key={pathname} className="relative">
     <summary className={`cursor-pointer list-none whitespace-nowrap rounded-md px-3 py-2 ${active ? "bg-emerald-50 font-semibold text-accent" : "text-slate-700 hover:bg-slate-100"}`}>{label} ▾</summary>
@@ -33,11 +39,13 @@ export function Navigation({ mode }: { mode: ViewMode }) {
   const reports = [
     { href: "/reports/income-statement", label: t.incomeStatement },
     { href: "/reports/balance-sheet", label: t.balanceSheet },
+    { href: "/reports/vat-return", label: t.vatReturn },
     ...(mode === "accountant" ? [{ href: "/reports/trial-balance", label: t.trialBalance }] : []),
   ];
   const setup = [
     { href: "/accounts", label: t.accounts },
     { href: "/suppliers", label: t.suppliers },
+    { href: "/banking", label: t.banking },
     { href: "/periods", label: t.periods },
     { href: "/integrations/scorpinvoice", label: "ScorpInvoice sync" },
   ];
@@ -48,7 +56,7 @@ export function Navigation({ mode }: { mode: ViewMode }) {
         <NavLink href="/dashboard" label={t.home} pathname={pathname} />
         <NavLink href="/journal" label={t.journal} pathname={pathname} />
         <NavLink href="/bills" label={t.bills} pathname={pathname} />
-        <NavLink href="/banking" label={t.banking} pathname={pathname} />
+        <NavLink href="/banking/inbox" label={t.bankInbox} pathname={pathname} />
         <NavMenu label={t.reports} items={reports} pathname={pathname} />
         <NavMenu label={t.setup} items={setup} pathname={pathname} />
         <form action={setViewModeAction} className="ml-2">
