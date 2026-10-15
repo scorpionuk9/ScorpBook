@@ -7,7 +7,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { hmrcEnvironment, mtdVatAvailableFor } from "@/lib/hmrc/config";
 import { clientInfoSchema, fraudPreventionHeaders } from "@/lib/hmrc/fraud";
 import { disconnectHmrc } from "@/lib/hmrc/oauth";
-import { requestNetwork, sessionMultiFactor } from "@/lib/hmrc/request";
+import { incomingHeaderNames, requestNetwork, sessionMultiFactor } from "@/lib/hmrc/request";
 import { submitVatReturn, validateFraudHeaders, vatObligations, type VatObligation, type VatReceipt } from "@/lib/hmrc/vat";
 
 type Result<T> = { ok: true; data: T } | { ok: false; message: string };
@@ -71,10 +71,10 @@ export async function disconnectHmrcAction(): Promise<Result<null>> {
 }
 
 // Sandbox only: run HMRC's fraud prevention header checker on what we would send.
-export async function checkFraudHeadersAction(clientInfo: unknown): Promise<Result<{ sent: Record<string, string>; result: unknown }>> {
+export async function checkFraudHeadersAction(clientInfo: unknown): Promise<Result<{ sent: Record<string, string>; result: unknown; requestHeaderNames: string[] }>> {
   try {
     if (hmrcEnvironment() !== "sandbox") throw new Error("The header checker is only available in the HMRC sandbox.");
     const { fraud } = await mtdContext(clientInfo);
-    return { ok: true, data: { sent: fraud, result: await validateFraudHeaders(fraud) } };
+    return { ok: true, data: { sent: fraud, result: await validateFraudHeaders(fraud), requestHeaderNames: await incomingHeaderNames() } };
   } catch (error) { return fail(error); }
 }

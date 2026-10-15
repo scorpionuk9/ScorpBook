@@ -16,6 +16,12 @@ export async function requestNetwork(): Promise<RequestNetwork> {
   };
 }
 
+// Names (not values) of incoming request headers, for diagnosing which network
+// details the edge passes on. Sandbox use only.
+export async function incomingHeaderNames(): Promise<string[]> {
+  return [...(await headers()).keys()].sort();
+}
+
 // The authenticator-app step of this session, if the user completed one.
 export async function sessionMultiFactor(userId: string): Promise<MultiFactor> {
   const supabase = await createSessionClient();
