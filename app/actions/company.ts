@@ -21,6 +21,7 @@ function companyFields(formData: FormData) {
     name: String(formData.get("name") || ""),
     business_type: String(formData.get("business_type") || ""),
     vat_registered: formData.get("vat_registered") === "on",
+    vat_number: String(formData.get("vat_number") || ""),
     year_end_month: String(formData.get("year_end_month") || ""),
     year_end_day: String(formData.get("year_end_day") || ""),
   };

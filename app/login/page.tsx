@@ -32,7 +32,9 @@ export default function LoginPage() {
         password: String(formData.get("password") || ""),
       });
       if (error) throw error;
-      router.replace(next);
+      const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      const needsCode = assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2";
+      router.replace(needsCode ? `/login/verify?next=${encodeURIComponent(next)}` : next);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Sign in failed. Please check your details and try again.");

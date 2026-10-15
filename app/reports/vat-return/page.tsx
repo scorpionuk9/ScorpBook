@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { z } from "zod";
-import { requireAccountingUser } from "@/lib/accounting/auth";
+import { getAccountingContext } from "@/lib/accounting/auth";
+import { formatVatNumber } from "@/lib/accounting/vat-number";
 import { getVatReturn, listFiledVatReturns } from "@/lib/accounting/service";
 import { accountingToday } from "@/lib/accounting/dates";
 import { fileVatReturnAction } from "@/app/actions/banking";
@@ -36,7 +37,7 @@ function lastCompleteQuarter(today: string): { start: string; end: string } {
 type VatPageProps = { searchParams: Promise<{ start?: string | string[]; end?: string | string[] }> };
 
 export default async function VatReturnPage({ searchParams }: VatPageProps) {
-  await requireAccountingUser();
+  const { company } = await getAccountingContext();
   const params = await searchParams;
   const today = accountingToday();
   const fallback = lastCompleteQuarter(today);
@@ -52,7 +53,8 @@ export default async function VatReturnPage({ searchParams }: VatPageProps) {
   return <main className="mx-auto w-full max-w-5xl px-5 py-8"><div className="space-y-6">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><Link href="/dashboard" className="text-sm font-medium text-accent">← Home</Link><p className="mt-5 text-sm font-semibold text-accent">REPORTS</p><h1 className="mt-1 text-3xl font-bold">VAT return</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-500">The nine figures HMRC asks for, worked out from your records using the standard (invoice date) VAT scheme.</p></div>
+        <p className="mt-2 max-w-2xl text-sm text-slate-500">The nine figures HMRC asks for, worked out from your records using the standard (invoice date) VAT scheme.</p>
+        <p className="mt-1 text-xs text-slate-500">{company.name} · {company.vat_number ? `VAT number ${formatVatNumber(company.vat_number)}` : <Link href="/settings/company" className="text-accent">Add your VAT number</Link>}</p></div>
       <form method="get" className="flex flex-wrap items-end gap-2">
         <label className="text-xs font-semibold text-slate-600">From<input type="date" name="start" defaultValue={start} className="field mt-1.5" /></label>
         <label className="text-xs font-semibold text-slate-600">To<input type="date" name="end" defaultValue={end} className="field mt-1.5" /></label>

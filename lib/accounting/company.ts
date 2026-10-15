@@ -4,6 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/server";
 import { ROLES, type Role } from "@/lib/accounting/auth";
+import { isValidVatNumber, normaliseVatNumber } from "@/lib/accounting/vat-number";
 
 export const companySchema = z.object({
   name: z.string().trim().min(1, "Enter your business name.").max(150),
@@ -11,6 +12,8 @@ export const companySchema = z.object({
   vat_registered: z.boolean(),
   year_end_month: z.coerce.number().int().min(1).max(12),
   year_end_day: z.coerce.number().int().min(1).max(31),
+  vat_number: z.string().max(20).optional().transform((value) => value ? normaliseVatNumber(value) : undefined)
+    .refine((value) => !value || isValidVatNumber(value), "That VAT number doesn't look right. It should be 9 digits, like GB 123 4567 89."),
 });
 
 function fail(error: { message: string } | null, fallback: string): void {
@@ -25,6 +28,10 @@ export async function createCompany(input: unknown, userId: string): Promise<str
   });
   fail(error, "Could not create the company");
   if (!data) throw new Error("Could not create the company.");
+  if (company.vat_registered && company.vat_number) {
+    const { error: vatError } = await createAdminClient().from("accounting_tenants").update({ vat_number: company.vat_number }).eq("id", data);
+    fail(vatError, "Company created, but the VAT number could not be saved");
+  }
   return data;
 }
 
@@ -33,7 +40,7 @@ export async function updateCompany(tenantId: string, input: unknown): Promise<v
   const check = new Date(Date.UTC(2023, company.year_end_month - 1, company.year_end_day));
   if (check.getUTCDate() !== company.year_end_day) throw new Error("Choose a real year-end date.");
   const { error } = await createAdminClient().from("accounting_tenants")
-    .update({ name: company.name, vat_registered: company.vat_registered, year_end_month: company.year_end_month, year_end_day: company.year_end_day })
+    .update({ name: company.name, vat_registered: company.vat_registered, vat_number: company.vat_registered ? company.vat_number ?? null : null, year_end_month: company.year_end_month, year_end_day: company.year_end_day })
     .eq("id", tenantId);
   fail(error, "Could not save company details");
 }

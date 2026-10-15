@@ -1021,6 +1021,7 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          vat_number: string | null
           vat_registered: boolean
           year_end_day: number
           year_end_month: number
@@ -1031,6 +1032,7 @@ export type Database = {
           created_by?: string | null
           id: string
           name: string
+          vat_number?: string | null
           vat_registered?: boolean
           year_end_day?: number
           year_end_month?: number
@@ -1041,6 +1043,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          vat_number?: string | null
           vat_registered?: boolean
           year_end_day?: number
           year_end_month?: number

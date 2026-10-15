@@ -73,6 +73,7 @@ export default function SignupPage() {
       {error && <p role="alert" aria-live="polite" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       <button className="w-full rounded-xl bg-[#087f78] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#066a65] focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:cursor-wait disabled:opacity-60" disabled={busy} type="submit">{busy ? "Creating account…" : "Create account"}</button>
     </form>}
+    {!created && <p className="mt-5 text-center text-xs leading-5 text-slate-500">By creating an account you agree to our <Link href="/terms" className="font-semibold text-[#087f78] hover:underline">Terms of Service</Link> and <Link href="/privacy" className="font-semibold text-[#087f78] hover:underline">Privacy Policy</Link>.</p>}
     <p className="mt-7 text-center text-sm text-slate-500">Already have an account? <Link href={next === "/dashboard" ? "/login" : `/login?next=${encodeURIComponent(next)}`} className="font-semibold text-[#087f78] hover:underline">Sign in</Link></p>
   </AuthShell>;
 }

@@ -17,7 +17,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingProps) 
       <h1 className="mt-1 text-3xl font-bold">{hasCompany ? "Add another business" : "Let's set up your books"}</h1>
       <p className="mt-2 text-sm text-slate-500">Three quick questions. ScorpBook creates the right categories for you; there&apos;s nothing to configure.</p></div>
     <section className="card p-5 sm:p-7">
-      <CompanyForm mode="create" next={safeNextPath(params.next)} initial={{ name: params.name?.slice(0, 150) ?? "", business_type: "SOLE_TRADER", vat_registered: false, year_end_month: 4, year_end_day: 5 }} />
+      <CompanyForm mode="create" next={safeNextPath(params.next)} initial={{ name: params.name?.slice(0, 150) ?? "", business_type: "SOLE_TRADER", vat_registered: false, vat_number: "", year_end_month: 4, year_end_day: 5 }} />
     </section>
   </div></main>;
 }

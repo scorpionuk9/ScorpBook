@@ -16,23 +16,27 @@ export type Company = {
   role: Role;
   business_type: "LIMITED_COMPANY" | "SOLE_TRADER";
   vat_registered: boolean;
+  vat_number: string | null;
   year_end_month: number;
   year_end_day: number;
 };
 export type AccountingContext = { user: User; company: Company; companies: Company[] };
+type PartialContext = { user: User; company: null; companies: []; needsSecondFactor?: boolean };
 
 export class AccessError extends Error {}
 
 // The signed-in user, the company they are working in (cookie-selected, else
 // their first), and every company they belong to; null when signed out or not
 // yet in any company. Cached per request.
-export const getOptionalAccountingContext = cache(async (): Promise<AccountingContext | { user: User; company: null; companies: [] } | null> => {
+export const getOptionalAccountingContext = cache(async (): Promise<AccountingContext | PartialContext | null> => {
   const supabase = await createSessionClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
+  // Users with two-step verification must complete it before seeing any business.
+  if (await needsSecondFactor(supabase)) return { user, company: null, companies: [], needsSecondFactor: true };
 
   const { data, error: membershipError } = await createAdminClient().from("accounting_memberships")
-    .select("role, accounting_tenants (id, name, business_type, vat_registered, year_end_month, year_end_day)")
+    .select("role, accounting_tenants (id, name, business_type, vat_registered, vat_number, year_end_month, year_end_day)")
     .eq("user_id", user.id);
   if (membershipError) throw new Error(`Failed to load your companies: ${membershipError.message}`);
   const companies = (data ?? []).flatMap((row) => row.accounting_tenants ? [{ ...row.accounting_tenants, role: row.role as Role } as Company] : [])
@@ -47,6 +51,7 @@ export const getOptionalAccountingContext = cache(async (): Promise<AccountingCo
 export async function getAccountingContext(): Promise<AccountingContext> {
   const context = await getOptionalAccountingContext();
   if (!context) redirect("/login");
+  if ("needsSecondFactor" in context && context.needsSecondFactor) redirect("/login/verify");
   if (!context.company) redirect("/onboarding");
   return context as AccountingContext;
 }
@@ -74,5 +79,13 @@ export async function requireSignedInUser(): Promise<User> {
   const supabase = await createSessionClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) redirect("/login");
+  if (await needsSecondFactor(supabase)) redirect("/login/verify");
   return user;
+}
+
+// True when the user has a verified second factor but this session hasn't used it yet.
+async function needsSecondFactor(supabase: Awaited<ReturnType<typeof createSessionClient>>): Promise<boolean> {
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error) throw new Error(`Failed to check two-step verification: ${error.message}`);
+  return data.nextLevel === "aal2" && data.currentLevel !== "aal2";
 }

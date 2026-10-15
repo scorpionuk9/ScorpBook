@@ -6,7 +6,7 @@ import { createCompanyAction, updateCompanyAction } from "@/app/actions/company"
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-export type CompanyFormValues = { name: string; business_type: "LIMITED_COMPANY" | "SOLE_TRADER"; vat_registered: boolean; year_end_month: number; year_end_day: number };
+export type CompanyFormValues = { name: string; business_type: "LIMITED_COMPANY" | "SOLE_TRADER"; vat_registered: boolean; vat_number: string; year_end_month: number; year_end_day: number };
 
 export function CompanyForm({ initial, mode, next = "/dashboard", readOnly = false }: { initial: CompanyFormValues; mode: "create" | "edit"; next?: string; readOnly?: boolean }) {
   const router = useRouter();
@@ -57,6 +57,11 @@ export function CompanyForm({ initial, mode, next = "/dashboard", readOnly = fal
       <input type="checkbox" name="vat_registered" disabled={readOnly} className="mt-1" checked={values.vat_registered} onChange={(event) => set({ vat_registered: event.target.checked })} />
       <span><span className="font-semibold">Registered for VAT</span><span className="block text-xs text-slate-500">Turns on VAT fields and the VAT return. You can change this later.</span></span>
     </label>
+
+    {values.vat_registered && <label className="block text-sm font-semibold text-slate-700">VAT registration number
+      <input name="vat_number" disabled={readOnly} inputMode="text" autoComplete="off" maxLength={20} className="field mt-1.5 max-w-xs" placeholder="GB 123 4567 89" value={values.vat_number} onChange={(event) => set({ vat_number: event.target.value })} />
+      <span className="mt-1 block text-xs font-normal text-slate-500">On your VAT registration certificate. Needed to send VAT returns to HMRC; you can add it later.</span>
+    </label>}
 
     {message && <p role="status" className={`rounded-lg p-3 text-sm ${message.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>{message.text}</p>}
     {!readOnly && <button type="submit" className="button" disabled={busy}>{busy ? "Saving…" : mode === "create" ? "Set up my books" : "Save changes"}</button>}

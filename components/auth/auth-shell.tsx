@@ -22,7 +22,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         <div><p className="text-lg font-bold tracking-tight text-[#0a1a38]">ScorpBook</p><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Accounting by Scorpia Tech</p></div>
       </div>
       <div className="w-full max-w-[440px]">{children}</div>
-      <p className="mt-8 text-center text-xs text-slate-400">ScorpBook by Scorpia Tech Ltd</p>
+      <p className="mt-8 text-center text-xs text-slate-400">ScorpBook by Scorpia Tech Ltd · <a href="/privacy" className="hover:text-slate-600">Privacy</a> · <a href="/terms" className="hover:text-slate-600">Terms</a></p>
     </section>
   </main>;
 }

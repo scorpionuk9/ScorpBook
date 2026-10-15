@@ -28,6 +28,9 @@ npm run deploy
 
 ## Implemented workflows
 
+- Two-step verification: users can add an authenticator-app (TOTP) factor at `/settings/security` (Supabase MFA). Once enabled, sign-in continues at `/login/verify`, and `lib/accounting/auth.ts` refuses every page and action until the session reaches AAL2.
+- Businesses can store their VAT registration number (9 digits, validated with HMRC's check-digit rules) in **Business details**; it is needed for MTD VAT later.
+- Public `/privacy` and `/terms` pages, linked from the footer, sign-in screens and sign-up.
 - Sign up, then create a business (sole trader or limited company, VAT status, financial year end); `create_accounting_tenant` seeds the matching chart of accounts. Users can belong to several businesses and switch between them. Owners invite people by link (`/settings/team`; the link is shown once, only its hash is stored, valid 14 days, must be accepted with the invited email).
 - ScorpInvoice users choose **Settings → Connect to ScorpBook**: a signed 30-minute link brings them to `/connect/scorpinvoice`, where they sign in, pick a business they own and optionally import existing records. ScorpBook then calls ScorpInvoice's signed `/api/scorpbook/connect` to start the sync, and only accepts webhook events from linked ScorpInvoice accounts (`scorpinvoice_links`).
 - Land on a dashboard after sign-in showing money in the bank, receivables, payables, net VAT, profit this month/year, and outstanding tasks. A Simple/Accountant toggle (per-browser cookie) switches between plain-language labels and standard accounting terms.

@@ -8,7 +8,7 @@ import { switchCompanyAction } from "@/app/actions/company";
 import { LABELS, type ViewMode } from "@/lib/ui/view-mode";
 
 function hiddenOn(pathname: string): boolean {
-  return pathname === "/login" || pathname === "/signup" || pathname.startsWith("/auth/");
+  return pathname === "/login" || pathname.startsWith("/login/") || pathname === "/signup" || pathname.startsWith("/auth/");
 }
 
 // "/banking" (reconciliation) and "/banking/inbox" are separate menu items.
@@ -70,6 +70,7 @@ export function Navigation({ mode, company, companies, signedIn }: { mode: ViewM
     { href: "/integrations/scorpinvoice", label: "ScorpInvoice sync" },
     { href: "/settings/company", label: "Business details" },
     { href: "/settings/team", label: "Team" },
+    { href: "/settings/security", label: "Sign-in security" },
   ];
   return <header className="border-b border-slate-200 bg-white">
     <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
@@ -96,5 +97,5 @@ export function Navigation({ mode, company, companies, signedIn }: { mode: ViewM
 export function SiteFooter() {
   const pathname = usePathname();
   if (hiddenOn(pathname)) return null;
-  return <footer className="mx-auto w-full max-w-7xl px-5 pb-8 text-xs text-slate-400">ScorpBook by Scorpia Tech Ltd · Beta</footer>;
+  return <footer className="mx-auto flex w-full max-w-7xl flex-wrap gap-x-3 px-5 pb-8 text-xs text-slate-400"><span>ScorpBook by Scorpia Tech Ltd · Beta</span><Link href="/privacy" className="hover:text-slate-600">Privacy</Link><Link href="/terms" className="hover:text-slate-600">Terms</Link></footer>;
 }
