@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { z } from "zod";
-import { getAccountingContext } from "@/lib/accounting/auth";
+import { getAccountingContext, hasRole } from "@/lib/accounting/auth";
+import { hmrcEnvironment, mtdVatAvailableFor } from "@/lib/hmrc/config";
+import { getHmrcConnection } from "@/lib/hmrc/oauth";
+import { MtdVatPanel } from "@/components/hmrc/mtd-vat-panel";
 import { formatVatNumber } from "@/lib/accounting/vat-number";
 import { getVatReturn, listFiledVatReturns } from "@/lib/accounting/service";
 import { accountingToday } from "@/lib/accounting/dates";
@@ -34,7 +37,7 @@ function lastCompleteQuarter(today: string): { start: string; end: string } {
   return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
 }
 
-type VatPageProps = { searchParams: Promise<{ start?: string | string[]; end?: string | string[] }> };
+type VatPageProps = { searchParams: Promise<{ start?: string | string[]; end?: string | string[]; hmrc?: string | string[] }> };
 
 export default async function VatReturnPage({ searchParams }: VatPageProps) {
   const { company } = await getAccountingContext();
@@ -46,6 +49,9 @@ export default async function VatReturnPage({ searchParams }: VatPageProps) {
   const end = pick(params.end, fallback.end);
   const valid = start <= end;
   const [boxes, filed, simple] = await Promise.all([valid ? getVatReturn(start, end) : null, listFiledVatReturns(), getViewMode().then((mode) => mode === "simple")]);
+  const mtd = mtdVatAvailableFor(company.id) && company.vat_registered;
+  const hmrcConnection = mtd ? await getHmrcConnection(company.id) : null;
+  const hmrcStatus = Array.isArray(params.hmrc) ? params.hmrc[0] : params.hmrc ?? null;
   const alreadyFiled = filed.find((item) => item.period_start === start && item.period_end === end);
   const shown = alreadyFiled?.boxes ?? boxes;
   const ended = end < today;
@@ -61,6 +67,10 @@ export default async function VatReturnPage({ searchParams }: VatPageProps) {
         <button className="button" type="submit">Calculate</button>
       </form>
     </div>
+
+    {mtd && (company.vat_number
+      ? <MtdVatPanel connected={Boolean(hmrcConnection)} sandbox={hmrcEnvironment() === "sandbox"} canSubmit={hasRole(company.role, "ACCOUNTANT")} isOwner={company.role === "OWNER"} status={hmrcStatus} />
+      : <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">To send VAT returns to HMRC, <Link href="/settings/company" className="font-semibold underline">add your VAT number</Link> first.</p>)}
 
     {!valid || !shown ? <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">The period must end after it starts.</p> : <>
       {alreadyFiled && <p className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">✓ Marked as filed on {new Date(alreadyFiled.filed_at).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "Europe/London" })}. These are the figures saved at the time.</p>}
@@ -78,10 +88,10 @@ export default async function VatReturnPage({ searchParams }: VatPageProps) {
         {!alreadyFiled && ended && <FormActionButton action={fileVatReturnAction} fields={{ start, end }} label="Mark as filed" pendingLabel="Saving…" className="button" />}
         {!ended && <span className="text-sm text-slate-500">This period hasn&apos;t ended yet, so the figures can still change.</span>}
       </div>
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      {!mtd && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         <p className="font-semibold">How to submit</p>
         <p className="mt-1">HMRC only accepts VAT returns sent from Making Tax Digital software. ScorpBook can&apos;t send them to HMRC yet. For now, give these figures to your accountant, or enter them in HMRC-recognised bridging software, then click &quot;Mark as filed&quot; to keep a record. Check them first, especially if you use the Flat Rate or Cash Accounting scheme, which this calculation doesn&apos;t cover.</p>
-      </div>
+      </div>}
     </>}
 
     {filed.length > 0 && <section className="card p-5"><h2 className="font-semibold">Filed returns</h2>

@@ -66,3 +66,12 @@ ScorpInvoice database triggers queue a snapshot of each changed invoice or expen
 | Expense added/edited/deleted | Dr mapped cost account / Cr the configured paid-from account (company bank by default) |
 
 Duplicates are ignored by event ID and older snapshots by `snapshot_at`. Entries dated in a locked month post on today's date with a note. Failures roll back, are kept as `NEEDS_ATTENTION`, appear on the dashboard and can be retried from **Setup → ScorpInvoice sync**. Not yet handled: card/Pay by Bank processing fees, payouts from clearing to bank (record them as a transfer or via bank reconciliation), VAT on invoices, and exchange gains/losses on non-GBP invoices.
+
+## MTD VAT (HMRC)
+
+VAT-registered businesses with a VAT number can connect HMRC on the VAT return page and submit returns through the VAT (MTD) API (`lib/hmrc/`, `app/actions/hmrc.ts`).
+
+- **Environment variables** (server-only; never in `.env.local`, which is bundled into the Worker): `HMRC_ENV` (`sandbox` or `production`), `HMRC_CLIENT_ID`, `HMRC_CLIENT_SECRET`, `HMRC_TOKEN_KEY` (32 random bytes, base64; encrypts stored tokens with AES-256-GCM) and optional `HMRC_ENABLED_TENANTS` (comma-separated tenant IDs that may use MTD; empty means all). Locally they live in `.env.development.local`; in production use `wrangler secret put`.
+- **OAuth**: `/integrations/hmrc/connect` → HMRC → `/integrations/hmrc/callback` (both URLs must be registered as redirect URIs on the Developer Hub application). Access tokens are refreshed automatically; refresh tokens last 18 months.
+- **Submitting**: periods come from HMRC's obligations endpoint. Boxes are calculated by `get_vat_return` for the obligation's dates. The user must tick HMRC's legal declaration. HMRC's receipt (form bundle number, receipt ID) is stored on `accounting_vat_returns`.
+- **Fraud prevention headers** (`lib/hmrc/fraud.ts`, WEB_APP_VIA_SERVER) are sent on every call. Browser values come from `components/hmrc/client-info.ts`; network values from Cloudflare request headers. In the sandbox, the VAT page has a developer check that calls HMRC's Test Fraud Prevention Headers API. From `localhost` the network headers are necessarily missing; test them on the deployed site.

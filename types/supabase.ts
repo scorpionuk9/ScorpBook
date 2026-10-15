@@ -343,6 +343,50 @@ export type Database = {
           },
         ]
       }
+      accounting_hmrc_connections: {
+        Row: {
+          access_expires_at: string
+          access_token: string
+          connected_at: string
+          connected_by: string
+          environment: string
+          refresh_token: string
+          scope: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          access_expires_at: string
+          access_token: string
+          connected_at?: string
+          connected_by: string
+          environment: string
+          refresh_token: string
+          scope: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          access_expires_at?: string
+          access_token?: string
+          connected_at?: string
+          connected_by?: string
+          environment?: string
+          refresh_token?: string
+          scope?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_hmrc_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "accounting_tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_invitations: {
         Row: {
           accepted_at: string | null
@@ -1055,27 +1099,39 @@ export type Database = {
           boxes: Json
           filed_at: string
           filed_by: string | null
+          hmrc_receipt: Json | null
           id: string
           period_end: string
+          period_key: string | null
           period_start: string
+          submission_environment: string | null
+          submitted_at: string | null
           tenant_id: string
         }
         Insert: {
           boxes: Json
           filed_at?: string
           filed_by?: string | null
+          hmrc_receipt?: Json | null
           id?: string
           period_end: string
+          period_key?: string | null
           period_start: string
+          submission_environment?: string | null
+          submitted_at?: string | null
           tenant_id: string
         }
         Update: {
           boxes?: Json
           filed_at?: string
           filed_by?: string | null
+          hmrc_receipt?: Json | null
           id?: string
           period_end?: string
+          period_key?: string | null
           period_start?: string
+          submission_environment?: string | null
+          submitted_at?: string | null
           tenant_id?: string
         }
         Relationships: [
