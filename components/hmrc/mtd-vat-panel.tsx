@@ -120,7 +120,8 @@ export function MtdVatPanel({ connected, sandbox, canSubmit, isOwner, status }: 
         </div>}
       </>}
 
-    {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+    {error && <div role="alert" className="space-y-2 rounded-lg bg-red-50 p-3 text-sm text-red-700"><p>{error}</p>
+      {connected && /connect to HMRC again/i.test(error) && <a href="/integrations/hmrc/connect" className="button">Connect to HMRC again</a>}</div>}
 
     {sandbox && connected && canSubmit && <details className="text-xs text-slate-500">
       <summary className="cursor-pointer">Developer: check fraud prevention headers</summary>

@@ -73,9 +73,17 @@ export async function hmrcAccessToken(tenantId: string): Promise<string> {
     .select("environment, access_token, refresh_token, access_expires_at").eq("tenant_id", tenantId).maybeSingle();
   if (error) throw new Error(`Could not load the HMRC connection: ${error.message}`);
   if (!data || data.environment !== hmrcEnvironment()) throw new HmrcReconnectError("Connect to HMRC first.");
-  if (Date.parse(data.access_expires_at) - Date.now() > 60_000) return decryptSecret(data.access_token);
+  let accessToken: string; let refreshToken: string;
   try {
-    return await saveTokens(tenantId, await tokenRequest({ grant_type: "refresh_token", refresh_token: decryptSecret(data.refresh_token) }));
+    accessToken = decryptSecret(data.access_token);
+    refreshToken = decryptSecret(data.refresh_token);
+  } catch {
+    // Encrypted with a different HMRC_TOKEN_KEY (e.g. another environment): start again.
+    throw new HmrcReconnectError("Please connect to HMRC again.");
+  }
+  if (Date.parse(data.access_expires_at) - Date.now() > 60_000) return accessToken;
+  try {
+    return await saveTokens(tenantId, await tokenRequest({ grant_type: "refresh_token", refresh_token: refreshToken }));
   } catch {
     throw new HmrcReconnectError("Your HMRC connection has expired. Connect to HMRC again.");
   }
