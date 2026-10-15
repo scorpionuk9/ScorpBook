@@ -22,8 +22,11 @@ async function hmrcFetch(path: string, init: { method?: string; token: string; f
   const text = await response.text();
   const json = text ? JSON.parse(text) : {};
   if (!response.ok) {
-    const code = json?.code ?? json?.errors?.[0]?.code;
-    throw new HmrcApiError(friendlyError(response.status, code, json?.message), response.status, code);
+    // Business errors arrive as { code: "BUSINESS_ERROR", errors: [{ code: "DUPLICATE_SUBMISSION", ... }] }.
+    const inner = json?.errors?.[0]?.code;
+    const code = json?.code && json.code !== "BUSINESS_ERROR" && json.code !== "INVALID_REQUEST" ? json.code : inner ?? json?.code;
+    console.error(`[hmrc] ${init.method ?? "GET"} ${path.replace(/\/\d{9}\//, "/<vrn>/")} → ${response.status} ${text.slice(0, 500)}`);
+    throw new HmrcApiError(friendlyError(response.status, code, json?.errors?.[0]?.message ?? json?.message), response.status, code);
   }
   return { json, headers: response.headers };
 }
@@ -37,7 +40,8 @@ function friendlyError(status: number, code: string | undefined, message: string
     case "INSOLVENT_TRADER": return "HMRC records show this business as insolvent, so returns can't be filed online.";
     case "NOT_FOUND": return "HMRC has no VAT periods for this business yet.";
   }
-  if (status === 401 || status === 403) return "HMRC refused the request. Try connecting to HMRC again.";
+  if (status === 401) return "HMRC refused the request. Please connect to HMRC again.";
+  if (status === 403) return `HMRC refused the request${code ? ` (${code})` : ""}${message ? `: ${message}` : ""}.`;
   if (status === 429) return "HMRC is busy. Please wait a minute and try again.";
   return `HMRC returned an error (${status}${code ? ` ${code}` : ""})${message ? `: ${message}` : ""}.`;
 }
